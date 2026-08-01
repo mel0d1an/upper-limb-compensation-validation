@@ -1,5 +1,9 @@
 # Markerless detection of compensatory movement — validation data and analysis code
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21747009.svg)](https://doi.org/10.5281/zenodo.21747009)
+[![Code licence: MIT](https://img.shields.io/badge/code-MIT-blue.svg)](LICENSE)
+[![Data licence: CC BY 4.0](https://img.shields.io/badge/data-CC%20BY%204.0-blue.svg)](LICENSE-DATA)
+
 Repetition-level data, clinician annotations and analysis code behind the paper
 
 > **Markerless On-Device Detection of Compensatory Movement Patterns in
@@ -237,8 +241,13 @@ Attribution is required for the data. If you use them, cite the paper.
 
 ## Citation
 
-See `CITATION.cff`. Please cite the paper; a version-specific archive DOI is
-minted for each release.
+Please cite the paper. The archive itself carries two DOIs:
+
+* `10.5281/zenodo.21747009` — all versions; resolves to the latest. Cite this
+  one unless you need to pin an exact version.
+* `10.5281/zenodo.21747010` — version 1.0.0 specifically.
+
+Author and affiliation metadata is in `CITATION.cff`.
 
 ## Contact
 
