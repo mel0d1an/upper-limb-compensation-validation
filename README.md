@@ -35,12 +35,15 @@ data/
   DATA_DICTIONARY.md     every column, its units and its meaning
 code/
   reproduce.py           recomputes the reported numbers and verifies them
-  figure_elbow.py        redraws the elbow-criterion figure from the tables
+  figure_elbow.py        the elbow criterion behind Figure 4 of the paper
+  figure_spread.py       how unevenly the detector performs
+  figure_confusion.py    agreement with each clinician, class by class
   extract_repetition_tables.py
                          how data/ was derived from the raw recordings
 figures/
-  elbow_threshold.pdf    the rendered figure, vector and raster
-  elbow_threshold.png
+  elbow_threshold.*      the rendered figures, vector (PDF) and raster (PNG)
+  spread.*
+  confusion.*
 docs/
   protocol.md            recording protocol
   annotation_guide.md    what the clinicians were asked to do
@@ -135,12 +138,45 @@ line is the point: the threshold sits on a narrow distribution in healthy
 participants, which is what makes its placement — not the metric's
 discrimination — the fragile part.
 
-The rendered files live in `figures/` (PDF and PNG). To regenerate them:
+## What the macro-average hides
+
+![Left, macro-F1 for each participant separately; right, per-class F1 against
+each clinician with bootstrap intervals](figures/spread.png)
+
+The same result, disaggregated. On the left, one macro-F1 per participant: the
+median is 0.75, but individual participants run from 0.38 to 0.96, so a single
+headline number describes no particular person well. On the right, one F1 per
+sign against each clinician, which is the evidence behind the paper's three
+tiers — trunk lean and head tilt near-expert, elbow extension and inter-limb
+asymmetry moderate, shoulder elevation research-grade and not recommended for
+deployment. Averaging across signs of such different maturity is exactly what
+the paper warns against reading as a deployable-performance figure.
+
+## Where the errors fall
+
+![Confusion matrices for five signs against each of the two clinicians](figures/confusion.png)
+
+Full counts behind every F1 above, shaded within the clinician's row so the
+shading reads as recall and specificity rather than being swamped by the true
+negatives. Trunk lean misses one positive out of 89 against either clinician;
+shoulder elevation produces 65 and 81 false positives, which is the failure the
+paper attributes to a structural confound with normal abduction rather than to
+threshold placement.
+
+## Regenerating the figures
+
+The rendered files are committed under `figures/` in both PDF and PNG, so
+nothing needs to be run to see them. To rebuild:
 
 ```bash
 python3 -m pip install matplotlib
 python3 code/figure_elbow.py
+python3 code/figure_spread.py
+python3 code/figure_confusion.py
 ```
+
+Each script draws from `data/` alone and imports its scoring from
+`reproduce.py`, so no figure can drift away from the verified numbers.
 
 ## Provenance
 
