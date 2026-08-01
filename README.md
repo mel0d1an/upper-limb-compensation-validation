@@ -38,6 +38,9 @@ code/
   figure_elbow.py        redraws the elbow-criterion figure from the tables
   extract_repetition_tables.py
                          how data/ was derived from the raw recordings
+figures/
+  elbow_threshold.pdf    the rendered figure, vector and raster
+  elbow_threshold.png
 docs/
   protocol.md            recording protocol
   annotation_guide.md    what the clinicians were asked to do
@@ -119,16 +122,25 @@ repetitions against 166° on those instructed correct, area under the ROC curve
 calibration cohort's discrimination, and the participant-clustered bootstrap
 intervals.
 
-## Reproducing the figure
+## The elbow criterion
+
+![Minimum elbow angle per participant, and the ROC curve for separating
+elbow-flexion repetitions from those instructed correct](figures/elbow_threshold.png)
+
+Figure 4 of the paper, rendered from `data/repetitions.csv` alone. The left
+panel shows the minimum elbow angle reached in each repetition, per
+participant, split by instructed condition; the right panel the ROC curve with
+the calibrated operating point marked. The overlap either side of the dashed
+line is the point: the threshold sits on a narrow distribution in healthy
+participants, which is what makes its placement — not the metric's
+discrimination — the fragile part.
+
+The rendered files live in `figures/` (PDF and PNG). To regenerate them:
 
 ```bash
 python3 -m pip install matplotlib
 python3 code/figure_elbow.py
 ```
-
-Redraws the two-panel elbow figure — per-participant distribution of the
-minimum elbow angle, and the ROC curve with the operating point marked —
-from `data/repetitions.csv` alone.
 
 ## Provenance
 

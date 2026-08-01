@@ -6,9 +6,10 @@ Two panels, as in the paper: the per-participant distribution of the minimum
 elbow angle reached in each repetition, split by instructed condition, and the
 ROC curve for separating the two, with the calibrated operating point marked.
 
-Requires matplotlib.
+The rendered output is committed under `figures/`, so running this is only
+necessary to regenerate it. Requires matplotlib.
 
-    python3 figure_elbow.py [--out elbow_threshold.pdf]
+    python3 figure_elbow.py [--out ../figures/elbow_threshold]
 """
 import argparse
 import csv
@@ -68,8 +69,11 @@ def auc_rank(pos, neg):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=os.path.join(HERE, "elbow_threshold.pdf"))
+    ap.add_argument("--out", default=os.path.join(HERE, "..", "figures", "elbow_threshold"),
+                    help="output path without extension; a PDF and a PNG are written")
     args = ap.parse_args()
+    base = os.path.splitext(args.out)[0]
+    os.makedirs(os.path.dirname(os.path.abspath(base)), exist_ok=True)
 
     elb, cor = load()
     participants = sorted(set(elb) | set(cor))
@@ -120,8 +124,10 @@ def main():
     ax2.set_axisbelow(True)
 
     fig.tight_layout()
-    fig.savefig(args.out, bbox_inches="tight")
-    print(f"written: {args.out}")
+    for ext, kw in (("pdf", {}), ("png", {"dpi": 200})):
+        path = f"{base}.{ext}"
+        fig.savefig(path, bbox_inches="tight", facecolor="white", **kw)
+        print(f"written: {path}")
     print(f"  n(elbow flexion) = {len(flat_elb)}, n(correct) = {len(flat_cor)}, "
           f"AUC = {a:.3f}, sensitivity = {sens:.2f}, specificity = {spec:.2f}")
 
