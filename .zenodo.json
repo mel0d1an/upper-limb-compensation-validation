@@ -1,0 +1,24 @@
+{
+  "title": "Markerless detection of compensatory movement: validation data and analysis code",
+  "description": "<p>Repetition-level data, clinician annotations and analysis code behind the paper <em>Markerless On-Device Detection of Compensatory Movement Patterns in Upper-Limb Rehabilitation Exercises from Monocular RGB Video: A Validation Study in Healthy Adults</em>.</p><p>Contains 913 repetitions from 27 healthy adults in two non-overlapping cohorts (18 for detection validation, 9 for threshold calibration), 1242 independent annotations from two clinicians blind to the instructed condition, the calibrated thresholds, and a self-verifying script that recomputes every number reported in the paper. Video recordings and per-frame keypoint series are not included; the consent obtained does not cover their public release.</p>",
+  "upload_type": "dataset",
+  "access_right": "open",
+  "license": "cc-by-4.0",
+  "language": "eng",
+  "keywords": [
+    "markerless motion analysis",
+    "human pose estimation",
+    "upper-limb rehabilitation",
+    "compensatory movement",
+    "on-device inference",
+    "validation study"
+  ],
+  "creators": [
+    {"name": "Pavlikov, Artem E.", "orcid": "0009-0001-6165-7474", "affiliation": "Moscow Technical University of Communications and Informatics (MTUCI)"},
+    {"name": "Petrosyan, Vera R.", "orcid": "0009-0001-0416-047X", "affiliation": "Moscow Technical University of Communications and Informatics (MTUCI)"},
+    {"name": "Agapov, Vladislav A.", "orcid": "0009-0000-8811-5547", "affiliation": "Moscow Technical University of Communications and Informatics (MTUCI)"},
+    {"name": "Gorodnichev, Michail G.", "orcid": "0000-0003-1739-9831", "affiliation": "Moscow Technical University of Communications and Informatics (MTUCI)"},
+    {"name": "Lobunko, Danila A.", "orcid": "0009-0009-7741-2904", "affiliation": "Federal Center of Brain Research and Neurotechnologies (FMBA of Russia)"},
+    {"name": "Skvortsov, Dmitrii V.", "orcid": "0000-0002-2794-4912", "affiliation": "Federal Center of Brain Research and Neurotechnologies (FMBA of Russia)"}
+  ]
+}

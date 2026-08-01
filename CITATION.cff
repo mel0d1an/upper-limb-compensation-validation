@@ -1,0 +1,64 @@
+cff-version: 1.2.0
+message: "If you use these data or this code, please cite the paper below."
+title: "Markerless detection of compensatory movement: validation data and analysis code"
+abstract: >-
+  Repetition-level data, clinician annotations and analysis code for the
+  validation of a browser-based markerless pipeline that flags five
+  compensatory movement patterns during a seated lateral arm raise, evaluated
+  in healthy adults against independent annotations by two clinicians.
+type: dataset
+license: CC-BY-4.0
+authors:
+  - family-names: Pavlikov
+    given-names: Artem E.
+    orcid: "https://orcid.org/0009-0001-6165-7474"
+    affiliation: "Moscow Technical University of Communications and Informatics (MTUCI)"
+    email: a.e.pavlikov@mtuci.ru
+  - family-names: Petrosyan
+    given-names: Vera R.
+    orcid: "https://orcid.org/0009-0001-0416-047X"
+    affiliation: "Moscow Technical University of Communications and Informatics (MTUCI)"
+  - family-names: Agapov
+    given-names: Vladislav A.
+    orcid: "https://orcid.org/0009-0000-8811-5547"
+    affiliation: "Moscow Technical University of Communications and Informatics (MTUCI)"
+  - family-names: Gorodnichev
+    given-names: Michail G.
+    orcid: "https://orcid.org/0000-0003-1739-9831"
+    affiliation: "Moscow Technical University of Communications and Informatics (MTUCI)"
+  - family-names: Lobunko
+    given-names: Danila A.
+    orcid: "https://orcid.org/0009-0009-7741-2904"
+    affiliation: "Federal Center of Brain Research and Neurotechnologies (FMBA of Russia)"
+  - family-names: Skvortsov
+    given-names: Dmitrii V.
+    orcid: "https://orcid.org/0000-0002-2794-4912"
+    affiliation: "Federal Center of Brain Research and Neurotechnologies (FMBA of Russia)"
+keywords:
+  - markerless motion analysis
+  - human pose estimation
+  - upper-limb rehabilitation
+  - compensatory movement
+  - on-device inference
+  - validation study
+preferred-citation:
+  type: article
+  title: >-
+    Markerless On-Device Detection of Compensatory Movement Patterns in
+    Upper-Limb Rehabilitation Exercises from Monocular RGB Video:
+    A Validation Study in Healthy Adults
+  journal: Sensors
+  year: 2026
+  authors:
+    - family-names: Pavlikov
+      given-names: Artem E.
+    - family-names: Petrosyan
+      given-names: Vera R.
+    - family-names: Agapov
+      given-names: Vladislav A.
+    - family-names: Gorodnichev
+      given-names: Michail G.
+    - family-names: Lobunko
+      given-names: Danila A.
+    - family-names: Skvortsov
+      given-names: Dmitrii V.
