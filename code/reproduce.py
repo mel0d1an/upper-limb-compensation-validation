@@ -371,6 +371,10 @@ def main():
             print(f"  - {f}")
         raise SystemExit(1)
     print("All values match the manuscript.")
+    print("Note: the five per-metric calibration AUCs quoted in the Methods were obtained")
+    print("at calibration time on the per-repetition extremum over active-phase frames.")
+    print("The values printed above use the sustained statistic the detector thresholds,")
+    print("so they run slightly higher; the manuscript states this.")
     print("=" * 78)
 
 
