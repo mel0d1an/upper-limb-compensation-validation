@@ -1,0 +1,1647 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Запись эксперимента — отведение плеча (MediaPipe Pose)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --accent:#4f46e5; --accent-h:#4338ca; --accent-soft:#eef2ff;
+    --ok:#16a34a; --ok-soft:#f0fdf4; --bad:#dc2626; --bad-soft:#fef2f2;
+    --warn:#b45309; --warn-soft:#fffbeb;
+    --bg:#f4f5fa; --card:#ffffff; --line:#e4e7ef; --line-strong:#d2d6e0;
+    --text:#16181d; --muted:#6b7280;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.55 -apple-system,"Segoe UI",Roboto,sans-serif;
+         background:var(--bg); color:var(--text); }
+  a { color:var(--accent); }
+  a:hover { color:var(--accent-h); }
+  header { padding:12px 16px; background:#fff; border-bottom:1px solid var(--line); }
+  .brand { display:flex; align-items:center; gap:9px; }
+  .logo-dot { width:10px; height:10px; border-radius:50%;
+    background:var(--accent); flex:0 0 auto; }
+  header h1 { margin:0; font-size:16px; font-weight:650; letter-spacing:-0.01em; }
+  header .sub { color:var(--muted); font-size:12px; margin-top:2px; }
+  main { display:grid; grid-template-columns: minmax(420px,1fr) 360px; gap:12px;
+         padding:12px 16px; max-width:1280px; margin:0 auto; }
+  @media (max-width:900px){ main { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px;
+          box-shadow:0 1px 3px rgba(16,24,40,.06); padding:16px 18px; }
+  .card > b { font-weight:650; letter-spacing:-0.01em; }
+  .videoWrap { position:relative; background:#000; border:1px solid var(--line);
+    border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(16,24,40,.06); }
+  video, canvas#overlay { width:100%; display:block;
+    transform:scaleX(-1); } /* зеркало только на экране; запись и
+                               ключевые точки — без зеркала */
+  canvas#overlay { position:absolute; inset:0; }
+  #stateBadge { position:absolute; top:8px; left:8px; padding:3px 10px;
+    border-radius:999px; background:rgba(0,0,0,.65); color:#fff; font-size:13px;
+    font-weight:600; }
+  #repBadge { position:absolute; top:8px; right:8px; padding:3px 10px;
+    border-radius:999px; background:rgba(0,0,0,.65); color:#fff; font-size:13px;
+    font-weight:600; }
+  label { display:block; margin:8px 0 2px; font-weight:600; font-size:12px; }
+  input, select { width:100%; padding:8px 10px; border:1px solid var(--line-strong);
+    border-radius:8px; font-size:14px; background:#fff; color:var(--text);
+    transition:border-color .15s, box-shadow .15s; }
+  input:focus, select:focus { outline:none; border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft); }
+  .row { display:flex; gap:8px; }
+  .row > * { flex:1; }
+  button { padding:9px 16px; border:0; border-radius:8px; font-size:14px;
+    cursor:pointer; background:var(--accent); color:#fff; font-weight:600;
+    transition:background .15s, box-shadow .15s; }
+  button:hover { background:var(--accent-h); }
+  button.secondary { background:#fff; color:var(--text);
+    border:1px solid var(--line-strong); }
+  button.secondary:hover { background:#f8f9fc; }
+  button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button:disabled:hover { background:var(--accent); }
+  button.secondary:disabled:hover { background:#fff; }
+  .btns { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .chip { padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600;
+    background:#f1f3f8; color:#555; border:1px solid transparent;
+    transition:background .15s, color .15s; }
+  .chip.viol { background:var(--bad-soft); color:var(--bad);
+    border:1px solid #fecaca; }
+  .chip.clean { background:var(--ok-soft); color:var(--ok);
+    border:1px solid #bbf7d0; }
+  table { width:100%; border-collapse:collapse; margin-top:8px; font-size:12px; }
+  th, td { border-bottom:1px solid var(--line); padding:7px 10px;
+    text-align:center; }
+  th { font-size:12px; text-transform:none; color:var(--muted);
+    background:#f8f9fc; font-weight:600; }
+  tbody tr:hover { background:#fafbfe; }
+  td.v1 { color:var(--bad); font-weight:700; }
+  #log { font:11px/1.5 ui-monospace,Menlo,monospace; color:var(--muted);
+    max-height:120px; overflow:auto; white-space:pre-wrap; margin-top:8px; }
+  .muted { color:var(--muted); font-size:12px; }
+  .num { font-variant-numeric: tabular-nums; }
+  .subhead { display:block; margin-top:10px; font-size:12px; font-weight:650;
+    letter-spacing:-0.01em; }
+  /* статистика разметки (бывший /dashboard) */
+  #statsSection { grid-column:1 / -1; }
+  .rater { display:flex; align-items:center; gap:12px; padding:8px 0;
+           border-bottom:1px solid var(--line); }
+  .rater:last-child { border-bottom:0; }
+  .rater .name { width:170px; font-weight:600; font-size:13px; }
+  .bar { flex:1; height:8px; background:#e9ecf3; border-radius:999px;
+         overflow:hidden; }
+  .bar > div { height:100%; border-radius:999px; transition:width .4s;
+               background:linear-gradient(90deg,var(--accent),#6366f1); }
+  .rater .cnt { width:90px; text-align:right; color:var(--muted);
+                font-variant-numeric:tabular-nums; font-size:12px; }
+  .rater a { font-size:12px; font-weight:600; white-space:nowrap;
+             text-decoration:none; }
+  .rater a:hover { text-decoration:underline; }
+  .pill { display:inline-block; padding:3px 10px; border-radius:999px;
+          font-size:12px; font-weight:600; background:var(--warn-soft);
+          color:var(--warn); }
+  .pill.void { background:var(--bad-soft); color:var(--bad); }
+  tr.voided td { opacity:.55; }
+  tr.voided td.keepcol { opacity:1; }
+  button.tiny { padding:4px 10px; font-size:12px; }
+  tr.grouphdr td { background:#eef2ff; cursor:pointer; font-size:13px; user-select:none; }
+  tr.grouphdr:hover td { background:#e4e9ff; }
+  tr.grouphdr .caret { display:inline-block; width:12px; color:var(--muted); }
+  tr.blockrow td:first-child { padding-left:26px; }
+  tr.repsrow td { background:#f8f9fc; padding:8px 12px; }
+  .repline { display:flex; align-items:center; gap:10px; padding:3px 0; font-size:12px; }
+  .repline.voided span.lbl { opacity:.5; text-decoration:line-through; }
+  button.danger { background:var(--bad); }
+  button.danger:hover { background:#b91c1c; }
+  .pattern { display:flex; gap:12px; align-items:center; margin-top:10px;
+    padding:10px 12px; border:1px solid var(--line-strong); border-radius:10px;
+    background:#fbfcfe; }
+  .pattern svg { width:92px; height:92px; flex:0 0 auto; }
+  .pattern .pcap b { display:block; font-size:14px; letter-spacing:-0.01em; }
+  .pattern .pcap span { display:block; font-size:12.5px; color:var(--muted);
+    margin-top:3px; line-height:1.4; }
+  .btnLink { display:inline-block; padding:9px 16px; border-radius:8px;
+    font-size:14px; background:var(--accent); color:#fff; font-weight:600;
+    text-decoration:none; transition:background .15s; }
+  .btnLink:hover { background:var(--accent-h); color:#fff; }
+  .btnLink:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="logo-dot"></span>
+    <h1>Кабинет исследователя — запись, загрузка и контроль разметки</h1>
+  </div>
+  <div class="sub">Обработка полностью на устройстве (MediaPipe Pose / BlazePose, 33 точки).
+    Пороги: <span id="thrVersion"></span> ·
+    <span id="srvBadge">сервер: проверка…</span></div>
+</header>
+
+<main>
+  <section>
+    <div class="videoWrap">
+      <video id="cam" playsinline muted></video>
+      <canvas id="overlay"></canvas>
+      <div id="stateBadge">инициализация…</div>
+      <div id="repBadge">повт.: 0/5</div>
+    </div>
+    <div class="chips" id="liveChips"></div>
+    <div class="card" style="margin-top:10px">
+      <b>Выполнение упражнения</b>
+      <p style="margin:6px 0 0; font-size:13px; line-height:1.55"><b>Подготовка.</b>
+        Упражнение выполняется <b>сидя</b> на устойчивом стуле (безопаснее для
+        пациентов). Перед стартом участник сидит прямо, руки опущены — совместите
+        его с силуэтом-ориентиром на видео; в кадре — от макушки (с запасом
+        сверху на поднятые руки) до коленей, таз обязательно. Первые ~2 с блока —
+        калибровка «функционального нуля» (исходные позиции плеч и головы),
+        сидеть неподвижно.</p>
+      <p style="margin:8px 0 0; font-size:13px; line-height:1.55"><b>Движение
+        (отведение плеча).</b> Подъём прямых рук через стороны до горизонтали
+        (~90°), удержание ~1 с, плавное опускание. Темп комфортный, ~4–6 с на
+        повторение; локти выпрямлены, плечи не поднимаются, корпус и голова
+        неподвижны. В блоках с компенсациями участник дополнительно следует
+        устной инструкции условия (см. протокол).</p>
+    </div>
+    <div class="card" style="margin-top:10px">
+      <b>Повторения текущего блока</b>
+      <table id="repTable">
+        <thead><tr><th>№</th><th>длит., с</th><th>локоть</th><th>асимм.</th>
+          <th>плечо</th><th>корпус</th><th>голова</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <aside>
+    <div class="card">
+      <b>Сессия</b>
+      <div id="authOk" class="muted" style="display:none;margin-top:6px"></div>
+      <p class="muted" style="margin:6px 0 0">Кнопка «Начать блок» станет
+        доступна после загрузки модели.</p>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <div id="recCohortRow" style="display:none">
+        <label>Когорта записи</label>
+        <select id="recCohort"></select>
+      </div>
+
+      <label style="margin-top:8px">Режим записи</label>
+      <select id="recMode">
+        <option value="healthy">Здоровый — 6 условий (имитация)</option>
+        <option value="patient">Пациент — естественно</option>
+      </select>
+
+      <label style="margin-top:8px">Код участника</label>
+      <div class="row">
+        <input id="pid" placeholder="P01" value="P01">
+        <button id="btnNextPid" class="secondary" type="button"
+                style="flex:0 0 auto;white-space:nowrap">Следующий участник</button>
+      </div>
+      <div id="pidProgress" class="muted" style="margin-top:8px"></div>
+
+      <div class="row">
+        <div id="condField">
+          <label>Условие (блок)</label>
+          <select id="cond">
+            <option value="COR">COR — корректное</option>
+            <option value="ELB">ELB — недоразгибание локтя</option>
+            <option value="ASY">ASY — асимметрия</option>
+            <option value="SHR">SHR — подъём плеча</option>
+            <option value="TRK">TRK — наклон корпуса</option>
+            <option value="HED">HED — наклон головы</option>
+          </select>
+        </div>
+        <div>
+          <label>Повторений</label>
+          <input id="nreps" type="number" value="5" min="1" max="20">
+        </div>
+      </div>
+      <div id="patternGuide" class="pattern"></div>
+      <label style="display:flex;gap:6px;align-items:center;margin-top:8px">
+        <input id="trial" type="checkbox" style="width:auto"> пробный блок (не в зачёт)
+      </label>
+      <div class="btns">
+        <button id="btnStart" disabled>Начать блок</button>
+        <button id="btnStop" class="secondary" disabled>Завершить блок</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <b>Загрузка готового видео</b>
+      <label>Видеофайл (.mp4 / .webm / .mov)</label>
+      <input id="fileInput" type="file"
+             accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov">
+      <div class="btns">
+        <button id="btnProcess" class="secondary" disabled>Обработать и загрузить</button>
+      </div>
+      <div id="procStatus" class="muted" style="margin-top:6px;min-height:14px"></div>
+      <p class="muted">Файл прогоняется через тот же конвейер (та же модель и
+        пороги), что и живая запись: распознаются повторения и компенсации,
+        затем блок загружается на сервер. Код участника, условие и признак
+        пробы берутся из формы выше.</p>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <b>Экспорт сессии</b>
+      <p class="muted">После каждого блока видео (.webm) и ключевые точки (.jsonl)
+        загружаются на сервер и параллельно скачиваются локально — это резервная
+        копия. Накопительный CSV ниже — тоже резерв: при работе через сервер
+        канонический CSV выгружается исследователем по
+        <code>/api/export/predictions</code>.</p>
+      <div class="btns">
+        <button id="btnCsv" class="secondary" disabled>Скачать system_predictions.csv</button>
+      </div>
+      <b class="subhead">Загрузка на сервер</b>
+      <div id="uploads"></div>
+      <b class="subhead">Локальные файлы (резерв)</b>
+      <div id="files"></div>
+      <div id="log"></div>
+    </div>
+  </aside>
+
+  <section id="statsSection" style="display:none">
+    <div class="card">
+      <b>Прогресс разметки</b>
+      <div id="cohortRow" style="display:none;margin-top:8px">
+        <label style="display:inline">Когорта</label>
+        <select id="cohortStats" style="width:auto;display:inline-block;margin-left:6px"></select>
+      </div>
+      <div id="raters" style="margin-top:6px"></div>
+      <p class="muted">Ссылка «CSV» рядом с врачом выгружает его
+        <code>annotations_&lt;id&gt;.csv</code>.</p>
+      <div class="btns">
+        <a class="btnLink" id="exportPred" href="/api/export/predictions">Скачать system_predictions.csv</a>
+        <button id="btnRefreshStats" class="secondary">Обновить</button>
+      </div>
+    </div>
+    <div class="card" style="margin-top:10px">
+      <b>Записанные блоки</b>
+      <table id="blocksTable">
+        <thead><tr><th>Участник</th><th>Условие</th><th></th>
+          <th>Повторений</th><th>Записан</th><th>Действие</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="muted" id="blocksEmpty">Пока нет ни одного блока.</p>
+      <p class="muted">«Исключить» убирает бракованный блок (сбой камеры,
+        кадрирование, не тот код) из очереди разметки и экспортов с обязательной
+        причиной; файл сохраняется, действие пишется в журнал аудита и обратимо.
+        Исключайте по техническим/организационным причинам, <b>не</b> по тому,
+        «правильным» ли вышел результат системы.</p>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <b>Отзыв согласия — удаление данных участника</b>
+      <p class="muted">Безвозвратно удаляет все записи участника (видео, ключевые
+        точки, разметку, блоки). Действие необратимо, фиксируется в журнале
+        аудита. Используйте только по запросу участника об отзыве согласия.</p>
+      <label>Код участника</label>
+      <input id="erasePid" placeholder="P07">
+      <div class="btns">
+        <button id="btnErase" class="danger">Удалить данные участника</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { FilesetResolver, PoseLandmarker, DrawingUtils } from
+  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+
+/* ====================== ЗАМОРОЖЕННЫЕ ПАРАМЕТРЫ ======================== */
+/* Пороги метрик — из диссертации (гл. 3.1, табл. 7). НЕ МЕНЯТЬ в ходе
+   исследования; при изменении обновить version. Для анализа
+   чувствительности предсказания пересчитываются оффлайн из .jsonl. */
+/* v1.1-draft: метрики плеча и асимметрии переработаны под фронтальную камеру +
+   отведение (старые v1.0 пороги из диссертации не переносились — плечо/асимметрия
+   срабатывали почти всегда). Пороги ПРОВИЗОРНЫЕ, финал — после пилота с рабочим
+   COR. Сырые keypoints логируются, поэтому пороги можно пересчитать оффлайн. */
+/* Канонические предсказания считает recompute.py из сырых keypoints (надёжный
+   «ноль» по покою). Эти живые пороги — для монитора при записи; подобраны по
+   клиническому референсу, финал — после пилота. */
+const THR = {
+  version: "v1.1-draft-20260613",
+  elbowMinDeg: 135,        // локоть согнут, если minугол < 135° (прямая рука ~155–170°)
+  asymMaxDeg: 20,          // асимметрия: углы рук к ВЕРТИКАЛИ ≥ 20° + подавление (см. violations)
+  shoulderRiseMax: 0.25,   // плечо: подъём / ширина плеч, ноль по покою (0.25: COR чист, SHR ~82%)
+  trunkTiltMaxRad: 0.05,   // корпус: наклон ≥ 0.05 рад (~2.9°)
+  headTiltDeg: 15,         // голова: наклон линии ушей ≥ 15° (вертикальное смещение носа — мимо)
+  trunkSuppressRad: 0.04,  // при наклоне корпуса ≥ этого асимметрию и голову не считаем
+  violationMs: 250,        // флаг повторения: нарушение суммарно ≥ 250 мс
+};
+/* Конечный автомат повторения (по углу подъёма руки, среднему для двух рук) */
+const FSM = {
+  liftStartDeg: 25,  // rest → lift
+  liftEndDeg: 18,    // lower → rest (гистерезис)
+  holdMinDeg: 55,    // минимальный угол для фазы hold
+  holdVelDegS: 20,   // |скорость| ниже порога → hold
+  baselineMs: 1500,  // окно усреднения функционального нуля
+};
+const EMA_ALPHA = 0.35; // сглаживание ключевых точек
+
+/* BlazePose: индексы точек */
+const L = { nose:0, lEar:7, rEar:8, lSho:11, rSho:12, lElb:13, rElb:14,
+            lWri:15, rWri:16, lHip:23, rHip:24 };
+const METRICS = ["elbow","asymmetry","shoulder","trunk","head"];
+const METRIC_RU = { elbow:"локоть", asymmetry:"асимметрия", shoulder:"плечо",
+                    trunk:"корпус", head:"голова" };
+
+/* ============================ СОСТОЯНИЕ =============================== */
+const ui = {};
+["cam","overlay","stateBadge","repBadge","pid","cond","nreps","trial",
+ "btnStart","btnStop","btnCsv","repTable","liveChips","log","thrVersion","files",
+ "srvBadge","authOk","uploads",
+ "fileInput","btnProcess","procStatus",
+ "statsSection","raters","btnRefreshStats","blocksTable","blocksEmpty",
+ "erasePid","btnErase","recMode","btnNextPid","pidProgress","condField",
+ "patternGuide","cohortRow","cohortStats","recCohortRow","recCohort"]
+  .forEach(id => ui[id] = document.getElementById(id));
+ui.thrVersion.textContent = THR.version;
+ui.liveChips.innerHTML = METRICS.map(m =>
+  `<span class="chip" id="chip_${m}">${METRIC_RU[m]}</span>`).join("");
+
+let landmarker = null, drawer = null;
+let smoothed = null;            // EMA-сглаженные landmarks
+let block = null;               // активный блок записи
+let statsCohort = "";           // выбранная когорта для прогресса/экспорта (исследователь)
+let recCohorts = [];            // список когорт (для формы записи и статистики)
+let pidInitialized = false;     // начальный код участника проставлен после загрузки кэша
+const expandedPids = new Set(); // какие участники развёрнуты в таблице блоков
+let pendingUploads = 0;         // блоки, ещё не подтверждённые сервером
+const csvRows = [];             // строки system_predictions.csv за сессию
+
+/* Предупредить, если уходить со страницы во время записи или незавершённой
+   загрузки: уход обрывает POST и блок не сохраняется на сервере (частая
+   причина «записал, а в системе нет»). */
+window.addEventListener("beforeunload", (e) => {
+  if (block || processing || pendingUploads > 0) {
+    e.preventDefault(); e.returnValue = "";
+  }
+});
+
+function log(msg) {
+  ui.log.textContent += msg + "\n";
+  ui.log.scrollTop = ui.log.scrollHeight;
+}
+
+/* ====================== АУТЕНТИФИКАЦИЯ И СЕРВЕР ======================= */
+let auth = null;          // {role:"researcher", name:...} либо null
+let cameraReady = false;  // камера + модель готовы
+let modelReady = false;   // модель загружена (для обработки файлов)
+
+function isResearcher() { return !!auth && auth.role === "researcher"; }
+
+/* ============ участники: режим, прогресс, авто-id и авто-условие ======= */
+let blocksCache = [];                         // последний список блоков с сервера
+const SCRIPTED = ["COR","ELB","ASY","SHR","TRK","HED"]; // условия режима A
+function recMode() { return ui.recMode.value; }          // 'healthy' | 'patient'
+
+/* зачётные (не пробные, не исключённые) блоки участника */
+function blocksForPid(pid) {
+  return blocksCache.filter(b =>
+    b.participant_id === pid && !b.trial && !b.voided_at);
+}
+function recordedConditions(pid) {
+  return new Set(blocksForPid(pid).map(b => b.condition));
+}
+/* Детерминированный «случайный» порядок условий для участника.
+   Перемешка сидируется по participant_id → один и тот же id всегда даёт ту же
+   последовательность (воспроизводимо и зафиксировано, как требует protocol §2.3).
+   COR не ставится первым: это нейтрализует эффект привыкания к референсу. */
+function _hash32(s) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h >>> 0;
+}
+function _mulberry32(a) {
+  return function () {
+    a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function conditionOrder(pid) {
+  const rnd = _mulberry32(_hash32("cond-order:" + (pid || "")));
+  const a = SCRIPTED.slice();
+  for (let i = a.length - 1; i > 0; i--) {        // перемешка Фишера–Йетса
+    const j = Math.floor(rnd() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  if (a[0] === "COR") {                            // COR не первым
+    const k = 1 + Math.floor(rnd() * (a.length - 1));
+    [a[0], a[k]] = [a[k], a[0]];
+  }
+  return a;
+}
+/* следующее незаписанное условие в рандомизированном порядке участника, или null */
+function nextScriptedCondition(pid) {
+  const done = recordedConditions(pid);
+  return conditionOrder(pid).find(c => !done.has(c)) || null;
+}
+/* следующая естественная проба пациента: NAT1, NAT2, … (режим B) */
+function nextNatCondition(pid) {
+  const n = blocksForPid(pid).filter(b => /^NAT\d+$/.test(b.condition)).length;
+  return "NAT" + (n + 1);
+}
+/* префикс выбранной когорты записи ('' — когорты не настроены) */
+function recPrefix() {
+  return (recCohorts.length && ui.recCohort.value) ? ui.recCohort.value : "";
+}
+/* следующий id участника: максимум числовой части + 1 в рамках когорты.
+   Если когорта задана — только среди её участников (V07 для V, P03 для P). */
+function nextParticipantId() {
+  const pfx = recPrefix();
+  let maxN = 0, prefix = pfx || "P", width = 2;
+  for (const b of blocksCache) {
+    const m = /^([A-Za-z]*)(\d+)$/.exec(b.participant_id || "");
+    if (!m) continue;
+    if (pfx ? (m[1] === pfx) : true) {
+      if (+m[2] >= maxN) { maxN = +m[2]; if (!pfx) prefix = m[1] || "P"; width = m[2].length; }
+    }
+  }
+  return prefix + String(maxN + 1).padStart(width, "0");
+}
+
+/* зачётное сценарное условие уже записано этому участнику (пробные — можно) */
+function conditionTaken() {
+  return recMode() === "healthy" && !ui.trial.checked
+      && recordedConditions(ui.pid.value.trim()).has(ui.cond.value);
+}
+/* можно ли начать живую запись при текущих участнике/условии/режиме */
+function canStartBlock() {
+  if (!(cameraReady && isResearcher()) || block) return false;
+  if (!ui.pid.value.trim()) return false;
+  // патиент: NATn вычисляется из кэша блоков, который обновляется только после
+  // подтверждённой загрузки — нельзя стартовать следующую пробу, пока прошлая
+  // не сохранилась, иначе тот же NATn → дубль → 409 и потеря записи.
+  if (recMode() === "patient" && pendingUploads > 0) return false;
+  return !conditionTaken();
+}
+
+/* ---- визуальные схемы паттерна для текущего условия ---- */
+const _svg = inner => `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" `
+  + `fill="none" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+const _G = 'stroke="#94a3b8" stroke-width="3"';      // серый — нейтрально
+const _R = 'stroke="#dc2626" stroke-width="4.5"';    // красный — компенсация
+const _Gr = 'stroke="#16a34a" stroke-width="4.5"';   // зелёный — корректно
+// корпус без головы и без рук (плечи, торс, таз, ноги)
+const _CORE = `<g ${_G}><line x1="42" y1="40" x2="78" y2="40"/>`
+  + `<line x1="60" y1="40" x2="60" y2="74"/><line x1="50" y1="74" x2="70" y2="74"/>`
+  + `<line x1="52" y1="74" x2="50" y2="98"/><line x1="68" y1="74" x2="70" y2="98"/></g>`;
+const _HEAD = `<g ${_G}><circle cx="60" cy="23" r="9"/><line x1="60" y1="32" x2="60" y2="40"/></g>`;
+const _ARMS_GRAY = `<g ${_G}><line x1="42" y1="40" x2="16" y2="40"/><line x1="78" y1="40" x2="104" y2="40"/></g>`;
+
+const PATTERNS = {
+  COR: { title: "COR — корректно",
+    instr: "Прямые руки через стороны до горизонтали, корпус и голова ровно.",
+    svg: _svg(_CORE + _HEAD + `<g ${_Gr}><line x1="42" y1="40" x2="16" y2="40"/>`
+      + `<line x1="78" y1="40" x2="104" y2="40"/></g>`) },
+  ELB: { title: "ELB — недоразгибание локтя",
+    instr: "Во время подъёма заметно согни руки в локтях.",
+    svg: _svg(_CORE + _HEAD + `<g ${_R}><polyline points="42,40 30,40 25,26"/>`
+      + `<polyline points="78,40 90,40 95,26"/></g>`) },
+  ASY: { title: "ASY — асимметрия",
+    instr: "Одну руку поднимай с заметным опережением другой.",
+    svg: _svg(_CORE + _HEAD + `<g ${_R}><line x1="42" y1="40" x2="16" y2="40"/>`
+      + `<line x1="78" y1="40" x2="99" y2="58"/></g>`) },
+  SHR: { title: "SHR — подъём плеча",
+    instr: "Во время подъёма тяни плечи вверх, к ушам.",
+    svg: _svg(
+      `<g ${_G}><circle cx="60" cy="21" r="9"/><line x1="60" y1="34" x2="60" y2="74"/>`
+      + `<line x1="50" y1="74" x2="70" y2="74"/><line x1="52" y1="74" x2="50" y2="98"/>`
+      + `<line x1="68" y1="74" x2="70" y2="98"/></g>`
+      + `<g ${_R}><line x1="42" y1="34" x2="78" y2="34"/></g>`
+      + `<g ${_G}><line x1="42" y1="34" x2="16" y2="34"/><line x1="78" y1="34" x2="104" y2="34"/></g>`
+      + `<g ${_R} stroke-width="3"><polyline points="35,31 40,26 45,31"/>`
+      + `<polyline points="75,31 80,26 85,31"/></g>`) },
+  TRK: { title: "TRK — наклон корпуса",
+    instr: "Во время подъёма заметно отклони корпус вбок.",
+    svg: _svg(
+      `<line x1="60" y1="36" x2="60" y2="74" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="3 3"/>`
+      + `<g ${_G}><line x1="50" y1="74" x2="70" y2="74"/><line x1="52" y1="74" x2="50" y2="98"/>`
+      + `<line x1="68" y1="74" x2="70" y2="98"/></g>`
+      + `<g ${_R}><line x1="60" y1="74" x2="45" y2="44"/><line x1="32" y1="48" x2="58" y2="40"/></g>`
+      + `<g ${_G}><circle cx="42" cy="30" r="9"/><line x1="45" y1="44" x2="43" y2="38"/>`
+      + `<line x1="32" y1="48" x2="12" y2="52"/><line x1="58" y1="40" x2="82" y2="36"/></g>`) },
+  HED: { title: "HED — наклон головы",
+    instr: "Во время подъёма наклони голову к плечу.",
+    svg: _svg(
+      `<line x1="60" y1="10" x2="60" y2="30" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="3 3"/>`
+      + _CORE + _ARMS_GRAY
+      + `<g ${_R}><line x1="60" y1="40" x2="53" y2="32"/><circle cx="49" cy="25" r="9"/></g>`) },
+  NAT: { title: "Естественно",
+    instr: "Без указаний — пациент выполняет упражнение как может.",
+    svg: _svg(_CORE + _HEAD + _ARMS_GRAY) },
+};
+
+function updatePatternGuide() {
+  const cond = recMode() === "patient" ? "NAT" : ui.cond.value;
+  const p = PATTERNS[cond] || PATTERNS.COR;
+  ui.patternGuide.innerHTML = p.svg
+    + `<div class="pcap"><b>${p.title}</b><span>${p.instr}</span></div>`;
+}
+
+/* перерисовать прогресс участника. autoPick=true — переставить условие на
+   следующее по порядку (смена участника/режима, после загрузки); при пассивном
+   обновлении (авто-рефреш) ручной выбор условия сохраняется. */
+function updateParticipantUI(autoPick = false) {
+  const pid = ui.pid.value.trim();
+  const patient = recMode() === "patient";
+  // синхронизировать селектор когорты с префиксом введённого кода
+  const cn = recCohorts.find(c => pid.startsWith(c.prefix));
+  if (cn && ui.recCohort.value !== cn.prefix) ui.recCohort.value = cn.prefix;
+  const cohortNote = cn ? `Когорта: ${cn.name} · ` : "";
+  ui.condField.style.display = patient ? "none" : "";
+  if (patient) {
+    const n = blocksForPid(pid).filter(b => /^NAT\d+$/.test(b.condition)).length;
+    ui.pidProgress.textContent =
+      `${cohortNote}Пациент ${pid || "—"}: записано проб — ${n} (следующая: ${nextNatCondition(pid)})`;
+  } else {
+    const done = recordedConditions(pid);
+    const order = conditionOrder(pid);
+    for (const opt of ui.cond.options) opt.disabled = done.has(opt.value);
+    const nextC = nextScriptedCondition(pid);
+    // авто-выбор: при смене контекста — всегда; иначе только если текущее
+    // условие уже записано (стало недоступным) или не задано
+    if ((autoPick || !ui.cond.value || done.has(ui.cond.value)) && nextC)
+      ui.cond.value = nextC;
+    ui.pidProgress.innerHTML = `${cohortNote}Участник ${pid || "—"}: ${done.size}/6` +
+      (nextC ? ` — следующее: <b>${nextC}</b>` : " — готов, нажмите «Следующий участник»") +
+      '<br>порядок: ' +
+      order.map((c, i) => done.has(c)
+        ? `<b style="color:var(--ok)">${i + 1}.${c}✓</b>`
+        : `${i + 1}.${c}`).join(" · ");
+  }
+  updatePatternGuide();
+  updateStart();
+}
+
+function updateStart() {
+  ui.btnStart.disabled = !canStartBlock();
+  updateProcess();
+}
+
+/* после успешной загрузки: обновить прогресс и авто-перейти к следующему
+   участнику, когда здоровый доброволец полностью записан (6/6) */
+function afterUploadUI(b) {
+  updateParticipantUI(true);
+  if (recMode() === "healthy" && b && !b.trial
+      && ui.pid.value.trim() === b.pid && nextScriptedCondition(b.pid) === null) {
+    const np = nextParticipantId();
+    ui.pid.value = np;
+    updateParticipantUI(true);
+    log(`участник ${b.pid} записан полностью (6/6) — следующий: ${np}`);
+  }
+}
+
+ui.recMode.onchange = () => updateParticipantUI(true);
+ui.pid.oninput = () => updateParticipantUI(true);
+ui.cond.onchange = () => { updatePatternGuide(); updateStart(); };
+ui.trial.onchange = () => updateStart();
+ui.btnNextPid.onclick = () => {
+  ui.pid.value = nextParticipantId();
+  updateParticipantUI(true);
+};
+function setServerBadge(connected) {
+  ui.srvBadge.textContent = "сервер: " + (connected ? "подключён" : "нет");
+  ui.srvBadge.style.color = connected ? "var(--ok)" : "var(--bad)";
+}
+function renderAuth() {
+  // вход выполняется на единой странице "/"; сюда попадают уже с сессией
+  ui.authOk.style.display = "block";
+  ui.authOk.textContent = `Вы вошли как: ${auth.name} `;
+  const out = document.createElement("a");
+  out.href = "#"; out.textContent = "выйти";
+  out.onclick = async e => {
+    e.preventDefault();
+    await fetch("/api/logout", { method: "POST" }).catch(() => {});
+    window.location.replace("/");
+  };
+  ui.authOk.appendChild(out);
+  ui.statsSection.style.display = "block";
+}
+async function checkMe() {
+  try {
+    const r = await fetch("/api/me");
+    setServerBadge(true);
+    auth = r.ok ? await r.json() : null;
+  } catch {
+    setServerBadge(false);
+    auth = null;
+    return; // сервер недоступен — не редиректим, бейдж уже говорит об этом
+  }
+  if (!auth || auth.role !== "researcher") {
+    window.location.replace("/"); // единая точка входа
+    return;
+  }
+  renderAuth(); updateStart();
+  refreshStats();
+}
+checkMe();
+
+/* ============================ ГЕОМЕТРИЯ =============================== */
+const deg = r => r * 180 / Math.PI;
+function angleBetween(ux, uy, vx, vy) {
+  const d = (ux*vx + uy*vy) /
+    (Math.hypot(ux,uy) * Math.hypot(vx,vy) + 1e-9);
+  return Math.acos(Math.min(1, Math.max(-1, d)));
+}
+/* Угол в локте: между векторами локоть→плечо и локоть→кисть */
+function elbowAngle(lm, sho, elb, wri) {
+  return deg(angleBetween(lm[sho].x-lm[elb].x, lm[sho].y-lm[elb].y,
+                          lm[wri].x-lm[elb].x, lm[wri].y-lm[elb].y));
+}
+/* Угол подъёма руки: между вектором плечо→локоть и направлением «вниз»
+   вдоль оси туловища (середина плеч → середина таза). 0° — рука опущена. */
+function elevAngle(lm, sho, elb) {
+  const mx = (lm[L.lSho].x+lm[L.rSho].x)/2, my = (lm[L.lSho].y+lm[L.rSho].y)/2;
+  const hx = (lm[L.lHip].x+lm[L.rHip].x)/2, hy = (lm[L.lHip].y+lm[L.rHip].y)/2;
+  return deg(angleBetween(lm[elb].x-lm[sho].x, lm[elb].y-lm[sho].y,
+                          hx-mx, hy-my));
+}
+/* Наклон корпуса: угол вектора таз→плечи к вертикали кадра (рад) */
+function trunkTilt(lm) {
+  const tx = (lm[L.lSho].x+lm[L.rSho].x)/2 - (lm[L.lHip].x+lm[L.rHip].x)/2;
+  const ty = (lm[L.lSho].y+lm[L.rSho].y)/2 - (lm[L.lHip].y+lm[L.rHip].y)/2;
+  return angleBetween(tx, ty, 0, -1); // (0,-1) — «вверх» в координатах кадра
+}
+/* Угол подъёма руки относительно ВЕРТИКАЛИ кадра (0° — рука опущена).
+   В отличие от elevAngle (ось туловища) не зависит от наклона корпуса, поэтому
+   асимметрия по нему не подмешивается из условия TRK (v1.1). */
+function elevVert(lm, sho, elb) {
+  return deg(angleBetween(lm[elb].x-lm[sho].x, lm[elb].y-lm[sho].y, 0, 1));
+}
+/* Наклон линии ушей к горизонтали — мера наклона головы вбок (HED). */
+function earTilt(lm) {
+  return deg(angleBetween(lm[L.lEar].x-lm[L.rEar].x, lm[L.lEar].y-lm[L.rEar].y, 1, 0));
+}
+/* Опорные точки в кадре [0,1]? Вне кадра MediaPipe экстраполирует мусор —
+   такие кадры портят «функциональный ноль» и метрики (особенно головы/плеч). */
+function inFrame(lm) {
+  for (const i of [L.nose, L.lSho, L.rSho, L.lHip, L.rHip]) {
+    if (lm[i].x < 0 || lm[i].x > 1 || lm[i].y < 0 || lm[i].y > 1) return false;
+  }
+  return true;
+}
+
+/* Покадровые метрики; baseline = {shoY, shoW, ear} или null до калибровки */
+function frameMetrics(lm, baseline) {
+  const elbL = elbowAngle(lm, L.lSho, L.lElb, L.lWri);
+  const elbR = elbowAngle(lm, L.rSho, L.rElb, L.rWri);
+  const elevL = elevAngle(lm, L.lSho, L.lElb);   // ось туловища — для FSM/elev
+  const elevR = elevAngle(lm, L.rSho, L.rElb);
+  const vL = elevVert(lm, L.lSho, L.lElb);        // вертикаль — для асимметрии
+  const vR = elevVert(lm, L.rSho, L.rElb);
+  const shoY = (lm[L.lSho].y + lm[L.rSho].y) / 2;
+  const shoW = Math.hypot(lm[L.lSho].x - lm[L.rSho].x,
+                          lm[L.lSho].y - lm[L.rSho].y) || 1e-6;
+  return {
+    elbowMin: Math.min(elbL, elbR),
+    asym: Math.abs(vL - vR),                       // v1.1: к вертикали
+    elev: (elevL + elevR) / 2,
+    // v1.1: подъём плеч вверх, нормированный на ширину плеч (масштабонезависимо)
+    shoulderRise: baseline ? Math.max(0, (baseline.shoY - shoY) / baseline.shoW) : 0,
+    trunk: trunkTilt(lm),
+    // v1.1: наклон головы = отклонение линии ушей от калибровочного нуля
+    headTilt: baseline ? Math.abs(earTilt(lm) - baseline.ear) : 0,
+    shoY, shoW, ear: earTilt(lm),
+  };
+}
+function violations(m) {
+  return {
+    elbow:     m.elbowMin < THR.elbowMinDeg,
+    // v1.1: асимметрию засчитываем только на прямых руках и при прямом корпусе —
+    // иначе наклон (TRK) и сгибание локтя (ELB) дают ложную «асимметрию».
+    asymmetry: m.asym >= THR.asymMaxDeg
+               && m.trunk < THR.trunkSuppressRad
+               && m.elbowMin >= THR.elbowMinDeg,
+    shoulder:  m.shoulderRise >= THR.shoulderRiseMax,
+    trunk:     m.trunk >= THR.trunkTiltMaxRad,
+    // v1.1: наклон головы — только при прямом корпусе (при TRK голова едет с корпусом)
+    head:      m.headTilt >= THR.headTiltDeg && m.trunk < THR.trunkSuppressRad,
+  };
+}
+
+/* ====================== БЛОК ЗАПИСИ И КОНЕЧНЫЙ АВТОМАТ ================ */
+let forcedCond = "";   // зафиксированное условие для пересъёмки (патиент: вернуть тот же NATn)
+function newBlock() {
+  const patient = recMode() === "patient";
+  const pid = ui.pid.value.trim() || "P00";
+  // патиент: при пересъёмке берём зафиксированное условие, иначе следующий NATn
+  const cond = patient ? (forcedCond || nextNatCondition(pid)) : ui.cond.value;
+  forcedCond = "";
+  return {
+    pid: pid,
+    cond: cond,
+    trial: ui.trial.checked,
+    // патиент: число повторов не задано — не обрезаем автостопом, исследователь
+    // завершает вручную; здоровый — ровно nReps (протокол, автостоп на nReps).
+    nReps: patient ? 1e9 : Math.max(1, +ui.nreps.value || 5),
+    t0: performance.now(),
+    state: "calibrating",     // calibrating → rest → lift → hold → lower
+    baseline: null,
+    calibBuf: [],
+    rep: 0,
+    repStartMs: 0,
+    violMs: Object.fromEntries(METRICS.map(m => [m, 0])),
+    lastT: null, lastElev: null,
+    frames: [],               // журнал кадров → .jsonl
+    reps: [],                 // итоги повторений
+    recorder: null, chunks: [],
+    autoFinishing: false,     // запущено автозавершение по достижении nReps
+  };
+}
+
+function fsmStep(b, t, m, lm) {
+  const rawDt = b.lastT === null ? 0 : t - b.lastT;
+  const dt = Math.min(rawDt, 100); // кламп: провал детекции не раздувает violMs
+  const vel = (b.lastElev === null || dt === 0 || rawDt > 100) ? 0
+              : (m.elev - b.lastElev) / (dt / 1000);
+  b.lastT = t; b.lastElev = m.elev;
+
+  // Цель по повторениям достигнута — больше не начинаем новых, ждём автостопа.
+  if (b.autoFinishing) return vel;
+
+  // Вне кадра точки экстраполируются (мусор) — замораживаем счёт повторений
+  // (кроме калибровки, у неё свой фильтр), чтобы не плодить фантомные/слипшиеся.
+  if (b.state !== "calibrating" && !inFrame(lm)) return vel;
+
+  switch (b.state) {
+    case "calibrating":
+      // только кадры «в кадре» — иначе ноль снимется с экстраполированного мусора
+      if (inFrame(lm)) b.calibBuf.push({ shoY: m.shoY, shoW: m.shoW, ear: m.ear });
+      if (t - b.t0 >= FSM.baselineMs) {
+        const n = b.calibBuf.length;
+        const md = k => { const a = b.calibBuf.map(v=>v[k]).sort((x,y)=>x-y);
+          return a.length ? a[a.length >> 1] : 0; };
+        b.baseline = { shoY: md("shoY"), shoW: md("shoW") || 1e-6, ear: md("ear") };
+        if (n < 10) {
+          log("ВНИМАНИЕ: мало валидных кадров калибровки (" + n + ") — участник, " +
+              "видимо, вне кадра. Ноль ненадёжен (плечо/голова могут врать). " +
+              "Перезапишите блок: участник в кадре (голова и таз видны), без движения ~2 с.");
+          ui.stateBadge.textContent = "калибровка ненадёжна — лучше перезаписать";
+        }
+        b.state = "rest";
+        log(`калибровка ок (${n} валидных кадров)`);
+      }
+      break;
+    case "rest":
+      if (m.elev >= FSM.liftStartDeg) {
+        b.rep += 1;
+        b.repStartMs = t;
+        b.violMs = Object.fromEntries(METRICS.map(k => [k, 0]));
+        b.state = "lift";
+      }
+      break;
+    case "lift":
+      // Безопасная сеть: рука вернулась вниз — повторение завершено независимо
+      // от скорости (медленное опускание не достигает порога vel).
+      if (m.elev < FSM.liftEndDeg) {
+        finishRep(b, t);
+        b.state = "rest";
+      } else if (m.elev >= FSM.holdMinDeg && Math.abs(vel) <= FSM.holdVelDegS) {
+        b.state = "hold";
+      } else if (vel < -FSM.holdVelDegS) {
+        b.state = "lower";
+      }
+      break;
+    case "hold":
+      if (m.elev < FSM.liftEndDeg) {
+        finishRep(b, t);
+        b.state = "rest";
+      } else if (vel < -FSM.holdVelDegS || m.elev < FSM.holdMinDeg) {
+        b.state = "lower";
+      } else if (vel > FSM.holdVelDegS) {
+        b.state = "lift";
+      }
+      break;
+    case "lower":
+      if (m.elev < FSM.liftEndDeg) {
+        finishRep(b, t);
+        b.state = "rest";
+      } else if (vel > FSM.holdVelDegS && m.elev >= FSM.holdMinDeg) {
+        b.state = "hold";
+      }
+      break;
+  }
+
+  /* накопление времени нарушений внутри повторения */
+  if (["lift","hold","lower"].includes(b.state) && b.baseline) {
+    const v = violations(m);
+    for (const k of METRICS) if (v[k]) b.violMs[k] += dt;
+  }
+  return vel;
+}
+
+function finishRep(b, t) {
+  const flags = Object.fromEntries(
+    METRICS.map(k => [k, b.violMs[k] >= THR.violationMs ? 1 : 0]));
+  const rec = {
+    rep: b.rep, startMs: Math.round(b.repStartMs - b.t0),
+    endMs: Math.round(t - b.t0),
+    durS: ((t - b.repStartMs) / 1000).toFixed(1), flags,
+  };
+  b.reps.push(rec);
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td>${rec.rep}</td><td class="num">${rec.durS}</td>` +
+    METRICS.map(k => `<td class="${flags[k] ? "v1" : ""}">${flags[k]}</td>`).join("");
+  ui.repTable.tBodies[0].appendChild(tr);
+  // патиент (nReps = ∞) — без «/N», просто счётчик; здоровый — «X/5»
+  ui.repBadge.textContent = b.nReps > 100 ? `повт.: ${b.rep}` : `повт.: ${b.rep}/${b.nReps}`;
+  if (b.rep >= b.nReps && !b.autoFinishing) {
+    // Автозавершение: все повторения записаны. Небольшая задержка — чтобы в
+    // видео попал «хвост» после последнего опускания, а recorder успел сбросить
+    // финальный чанк.
+    b.autoFinishing = true;
+    ui.stateBadge.textContent = "готово — сохранение блока…";
+    log(`блок ${b.cond}: все ${b.nReps} повторений записаны — автозавершение`);
+    setTimeout(() => { if (block === b) stopBlock({ auto: true }); }, 800);
+  }
+}
+
+/* ============================ ЭКСПОРТ ================================= */
+function download(name, blob) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+}
+
+/* Файлы сессии: храним blob и даём постоянную ссылку «скачать» — страховка
+   на случай, если Chrome заблокировал автоматическое скачивание. */
+function addFile(name, blob) {
+  download(name, blob); // попытка автоскачивания
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;justify-content:space-between;" +
+    "gap:8px;padding:3px 0;border-bottom:1px solid var(--line);font-size:12px";
+  const sizeMb = (blob.size / 1048576).toFixed(1);
+  const label = document.createElement("span");
+  label.textContent = `${name} `;
+  const size = document.createElement("span");
+  size.className = "muted";
+  size.textContent = `(${sizeMb} МБ)`;
+  label.appendChild(size);
+  row.appendChild(label);
+  const a = document.createElement("a");
+  a.textContent = "скачать";
+  a.href = "#";
+  a.onclick = e => { e.preventDefault(); download(name, blob); };
+  row.appendChild(a);
+  ui.files.appendChild(row);
+}
+
+/* ====================== ЗАГРУЗКА НА СЕРВЕР ============================ */
+/* FormData (с blob'ами видео и jsonl) держим в памяти до успешной загрузки,
+   чтобы «повторить» работало без перезаписи блока. */
+function uploadBlock(b, tag, videoBlob, jsonlBlob,
+                     fpsValue = 30, videoFilename = `${tag}.webm`) {
+  const fd = new FormData();
+  fd.append("client_uid", crypto.randomUUID()); // дедупликация retry на сервере
+  fd.append("participant_id", b.pid);
+  fd.append("condition", b.cond);
+  fd.append("trial", b.trial ? "1" : "0");
+  fd.append("threshold_set", THR.version);
+  fd.append("fps", String(fpsValue));
+  fd.append("reps", JSON.stringify(b.reps.map(r =>
+    ({ rep: r.rep, start_ms: r.startMs, end_ms: r.endMs, flags: r.flags }))));
+  fd.append("video", videoBlob, videoFilename);
+  fd.append("keypoints", jsonlBlob, `${tag}.jsonl`);
+
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;justify-content:space-between;gap:8px;" +
+    "padding:3px 0;border-bottom:1px solid var(--line);font-size:12px";
+  const label = document.createElement("span");
+  label.textContent = tag;
+  const status = document.createElement("span");
+  status.className = "num";
+  row.appendChild(label);
+  row.appendChild(status);
+  ui.uploads.appendChild(row);
+
+  let counted = true;          // этот блок ещё не подтверждён сервером
+  pendingUploads++;            // beforeunload предупредит, пока есть незавершённые
+  // Заметный статус на видео-бейдже (если новая запись не идёт)
+  if (!block) ui.stateBadge.textContent = "⏳ загрузка на сервер — не закрывайте страницу";
+
+  async function attempt() {
+    status.textContent = "загрузка…";
+    status.style.color = "#667";
+    if (!block) ui.stateBadge.textContent = "⏳ загрузка на сервер — не закрывайте страницу";
+    try {
+      const r = await fetch("/api/blocks", { method: "POST", body: fd });
+      const j = await r.json().catch(() => ({}));
+      // 413 (файл больше лимита) и 409 (условие уже записано) — НЕустранимы
+      // повтором того же запроса: помечаем терминально, без «повторить».
+      const terminal = (r.status === 413 || r.status === 409);
+      if (!r.ok) {
+        const msg = r.status === 413 ? "файл превышает лимит сервера (HTTP 413)"
+                  : (j.error || `HTTP ${r.status}`);
+        const e = new Error(msg); e.terminal = terminal; throw e;
+      }
+      status.textContent = `загружено ✓ (${j.block_uid})`;
+      status.style.color = "var(--ok)";
+      if (counted) { pendingUploads--; counted = false; }
+      if (!block) ui.stateBadge.textContent = "✓ блок сохранён на сервере";
+      log(`блок ${tag} загружен на сервер: ${j.block_uid}, повторений: ${j.reps}`);
+      // обновить «Записанные блоки», затем прогресс участника и авто-id
+      refreshStats().then(() => afterUploadUI(b));
+    } catch (e) {
+      if (e.terminal) {
+        // повтор тем же запросом гарантированно снова упадёт — не предлагаем
+        // «повторить» и снимаем счётчик, чтобы beforeunload не висел вечно.
+        if (counted) { pendingUploads--; counted = false; }
+        status.textContent = "не сохранено: " + e.message;
+        status.style.color = "var(--bad)";
+        if (!block)
+          ui.stateBadge.textContent = "✗ блок НЕ сохранён на сервере — есть локальная копия (резерв)";
+        log(`загрузка ${tag} отклонена: ${e.message}. Запись только в локальных файлах — ` +
+            `исправьте причину (короче видео / исключите старый блок) и загрузите вручную.`);
+        alert(`Блок ${tag} не сохранён на сервере: ${e.message}\n` +
+              "Есть локальная резервная копия (.webm/.jsonl). Повтор тем же файлом не поможет.");
+        updateStart();   // счётчик снят — разблокировать старт/обработку
+        return;
+      }
+      // временная ошибка (сеть/5xx): pendingUploads НЕ трогаем, даём «повторить».
+      status.textContent = "ошибка — ";
+      status.style.color = "var(--bad)";
+      const retry = document.createElement("a");
+      retry.href = "#";
+      retry.textContent = "повторить";
+      retry.onclick = ev => { ev.preventDefault(); attempt(); };
+      status.appendChild(retry);
+      if (!block)
+        ui.stateBadge.textContent = "✗ ошибка загрузки — данные сохранены локально, нажмите «повторить» внизу";
+      log(`ошибка загрузки ${tag}: ${e.message} — данные в памяти и в локальных файлах, можно повторить`);
+    }
+  }
+  attempt();
+}
+
+function finishBlock(b) {
+  const tag = `${b.pid}_${b.cond}${b.trial ? "_trial" : ""}`;
+  /* ключевые точки */
+  const jsonl = b.frames.map(f => JSON.stringify(f)).join("\n");
+  const jsonlBlob = new Blob([jsonl], { type: "application/jsonl" });
+  addFile(`${tag}.jsonl`, jsonlBlob);
+  /* строки CSV (пробные блоки в зачёт не идут) */
+  if (!b.trial) {
+    for (const r of b.reps) {
+      csvRows.push([
+        `${b.pid}_${b.cond}_rep${r.rep}`, b.pid, b.cond, r.rep,
+        ...METRICS.map(k => r.flags[k]),
+        THR.version, 30, `${tag}.jsonl`, r.startMs, r.endMs,
+      ].join(","));
+    }
+    ui.btnCsv.disabled = csvRows.length === 0;
+  }
+  /* видео придёт асинхронно из recorder.onstop */
+  b.recorder.onstop = () => {
+    const videoBlob = new Blob(b.chunks, { type: "video/webm" });
+    addFile(`${tag}.webm`, videoBlob);
+    log(`блок ${tag}: видео + ${b.frames.length} кадров jsonl, ` +
+        `${b.reps.length} повторений${b.trial ? " (проба, без CSV)" : ""}`);
+    if (b.reps.length === 0)
+      log(`блок ${tag}: 0 распознанных повторений — блок всё равно ` +
+          `загружается на сервер (можно переснять или исключить из кабинета)`);
+    // Запись всегда уходит на сервер, чтобы ничего не терялось: сырое видео и
+    // ключевые точки сохраняются даже без распознанных повторений.
+    uploadBlock(b, tag, videoBlob, jsonlBlob);
+  };
+  if (b.recorder.state !== "inactive") b.recorder.stop();
+  else b.recorder.onstop && b.recorder.onstop();
+}
+
+ui.btnCsv.onclick = () => {
+  const head = "clip_id,participant_id,condition,rep,elbow,asymmetry," +
+    "shoulder,trunk,head,threshold_set,fps,keypoints_file," +
+    "rep_start_ms,rep_end_ms";
+  download("system_predictions.csv",
+    new Blob([head + "\n" + csvRows.join("\n") + "\n"], { type: "text/csv" }));
+};
+
+/* ====================== ОБРАБОТКА ВИДЕОФАЙЛА ========================== */
+/* Отдельный экземпляр PoseLandmarker для файлов: у живого цикла таймстемпы
+   из performance.now(), у файла — из video.currentTime; смешение доменов
+   в одном экземпляре ломает VIDEO-режим (монотонность таймстемпов). */
+let procLandmarker = null;
+let processing = false;
+let procDetectTs = -1; // монотонный таймстемп procLandmarker между файлами
+
+function updateProcess() {
+  // патиент: не обрабатывать следующий файл, пока прошлая загрузка не подтверждена
+  // (NATn из кэша → иначе дубль). Здоровый защищён conditionTaken().
+  const patientBusy = recMode() === "patient" && pendingUploads > 0;
+  ui.btnProcess.disabled = processing || !!block || conditionTaken() || patientBusy ||
+    !(modelReady && isResearcher() && ui.fileInput.files.length);
+}
+
+async function ensureProcLandmarker() {
+  if (procLandmarker) return procLandmarker;
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+  procLandmarker = await PoseLandmarker.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath: "https://storage.googleapis.com/mediapipe-models/" +
+        "pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
+      delegate: "GPU",
+    },
+    runningMode: "VIDEO", numPoses: 1,
+  });
+  return procLandmarker;
+}
+
+async function processFile() {
+  const file = ui.fileInput.files[0];
+  if (!file || processing) return;
+  processing = true;
+  updateProcess();
+  const url = URL.createObjectURL(file);
+  const video = document.createElement("video");
+  video.muted = true;
+  video.playsInline = true;
+  video.src = url;
+  try {
+    ui.procStatus.textContent = "подготовка модели…";
+    await ensureProcLandmarker();
+    await new Promise((resolve, reject) => {
+      if (video.readyState >= 1) { resolve(); return; } // метаданные уже есть
+      const tmo = setTimeout(
+        () => reject(new Error("видео не открылось за 15 с")), 15_000);
+      video.onloadedmetadata = () => { clearTimeout(tmo); resolve(); };
+      video.onerror = () => {
+        clearTimeout(tmo);
+        reject(new Error("файл не читается как видео"));
+      };
+    });
+    video.playbackRate = 1.0;
+
+    const b = newBlock();          // pid/cond/trial/nReps — из формы выше
+    b.t0 = 0;                      // время блока = время видеофайла
+    let procSmoothed = null;       // локальное EMA-сглаживание (не smoothed!)
+    let lastSeenMs = -1;           // последний обработанный момент видео
+    const tsBase = procDetectTs + 1; // строгая монотонность между файлами
+    ui.repTable.tBodies[0].innerHTML = ""; // finishRep сам добавит строки
+    ui.procStatus.textContent = "обработка: 0% · повторений: 0";
+
+    await new Promise((resolve, reject) => {
+      let done = false;
+      const finish = () => { if (!done) { done = true; resolve(); } };
+      const fail = e => { if (!done) { done = true; reject(e); } };
+      const schedule = () => {
+        if (done) return;
+        if (video.requestVideoFrameCallback)
+          video.requestVideoFrameCallback(() => onFrame());
+        else requestAnimationFrame(onFrame);
+      };
+      const onFrame = () => {
+        if (done) return;
+        if (video.ended) { finish(); return; }
+        const t = video.currentTime * 1000;
+        if (t > lastSeenMs) { // rAF-fallback: обрабатывать только новый кадр
+          lastSeenMs = t;
+          try {
+            procDetectTs = tsBase + t;
+            const res = procLandmarker.detectForVideo(video, procDetectTs);
+            if (res.landmarks && res.landmarks.length) {
+              const raw = res.landmarks[0];
+              if (!procSmoothed) procSmoothed = raw.map(p => ({ ...p }));
+              else raw.forEach((p, i) => {
+                procSmoothed[i].x += EMA_ALPHA * (p.x - procSmoothed[i].x);
+                procSmoothed[i].y += EMA_ALPHA * (p.y - procSmoothed[i].y);
+                procSmoothed[i].z += EMA_ALPHA * (p.z - procSmoothed[i].z);
+                procSmoothed[i].visibility = p.visibility;
+              });
+              const m = frameMetrics(procSmoothed, b.baseline);
+              fsmStep(b, t, m, procSmoothed);
+              b.frames.push({
+                t: Math.round(t - b.t0), rep: b.rep, phase: b.state,
+                metrics: {
+                  elbow_min_deg: +m.elbowMin.toFixed(1),
+                  asym_deg: +m.asym.toFixed(1),
+                  elev_deg: +m.elev.toFixed(1),
+                  shoulder_rise: +m.shoulderRise.toFixed(4),
+                  trunk_rad: +m.trunk.toFixed(4),
+                  head_tilt_deg: +m.headTilt.toFixed(2),
+                },
+                landmarks: procSmoothed.map(p =>
+                  [+p.x.toFixed(4), +p.y.toFixed(4), +p.z.toFixed(4),
+                   +(p.visibility ?? 0).toFixed(2)]),
+              });
+            }
+            ui.procStatus.textContent = Number.isFinite(video.duration)
+              ? `обработка: ${Math.round(100 * video.currentTime /
+                  video.duration)}% · повторений: ${b.rep}`
+              : `обработка: ${video.currentTime.toFixed(0)} с · ` +
+                `повторений: ${b.rep}`;
+          } catch (e) { fail(e); return; }
+        }
+        schedule();
+      };
+      video.onended = finish;
+      video.play().then(schedule, fail);
+    });
+
+    const tag = `${b.pid}_${b.cond}${b.trial ? "_trial" : ""}`;
+    const jsonl = b.frames.map(f => JSON.stringify(f)).join("\n");
+    const jsonlBlob = new Blob([jsonl], { type: "application/jsonl" });
+    /* реальный fps файла; duration бывает Infinity (webm из MediaRecorder) */
+    const durS = Number.isFinite(video.duration) && video.duration > 0
+      ? video.duration : lastSeenMs / 1000;
+    const fps = Math.max(1, Math.round(b.frames.length / Math.max(durS, 0.001)));
+    const extM = /\.[^.]+$/.exec(file.name.toLowerCase());
+    const ext = extM ? extM[0] : ".mp4"; // сервер принимает .webm/.mp4/.mov/.m4v
+    if (b.reps.length === 0)
+      log(`файл ${file.name}: 0 распознанных повторений — блок всё равно ` +
+          `загружается (проверьте, что человек в кадре целиком; можно исключить из кабинета)`);
+    log(`файл ${file.name}: ${b.frames.length} кадров, ` +
+        `${b.reps.length} повторений, ~${fps} к/с`);
+    // Загружаем всегда, чтобы видео не терялось (как и при живой записи).
+    uploadBlock(b, tag, file, jsonlBlob, fps, `${tag}${ext}`);
+    ui.procStatus.textContent = `готово: ${b.reps.length} повторений — ` +
+      `загрузка на сервер (статус в панели «Загрузка на сервер»)`;
+  } catch (e) {
+    ui.procStatus.textContent =
+      "ошибка: " + (e && e.message ? e.message : e);
+  } finally {
+    URL.revokeObjectURL(url);
+    processing = false;
+    updateProcess();
+  }
+}
+
+ui.fileInput.onchange = () => { ui.procStatus.textContent = ""; updateProcess(); };
+ui.btnProcess.onclick = () => { processFile(); };
+
+/* ====================== СТАТИСТИКА РАЗМЕТКИ =========================== */
+/* Бывшая страница /dashboard: прогресс врачей и список блоков. */
+function renderStats(progress, blocks) {
+  blocksCache = blocks;          // для прогресса участника и авто-id
+  // первый раз после загрузки списка блоков — подставить корректный следующий
+  // код в выбранной когорте (initCohorts ставил его до загрузки кэша → мог
+  // предложить уже занятый, что дало бы 409 при записи).
+  if (!pidInitialized && recCohorts.length) {
+    pidInitialized = true;
+    ui.pid.value = nextParticipantId();
+    updateParticipantUI(true);
+  } else {
+    updateParticipantUI();
+  }
+  ui.raters.innerHTML = "";
+  for (const r of progress.raters) {
+    const pct = r.total ? Math.round(100 * r.done / r.total) : 0;
+    const row = document.createElement("div");
+    row.className = "rater";
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = `${r.name} (${r.rater_id})`;
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    const fill = document.createElement("div");
+    fill.style.width = pct + "%";
+    bar.appendChild(fill);
+    const cnt = document.createElement("span");
+    cnt.className = "cnt";
+    cnt.textContent = `${r.done} / ${r.total}`;
+    const a = document.createElement("a");
+    const cq = statsCohort ? ("?cohort=" + encodeURIComponent(statsCohort)) : "";
+    a.href = "/api/export/annotations/" + encodeURIComponent(r.rater_id) + cq;
+    a.textContent = "CSV";
+    row.append(name, bar, cnt, a);
+    ui.raters.appendChild(row);
+  }
+  // ссылка предсказаний — тоже по выбранной когорте
+  document.getElementById("exportPred").href =
+    "/api/export/predictions" + (statsCohort ? "?cohort=" + encodeURIComponent(statsCohort) : "");
+  if (!progress.raters.length) {
+    const p = document.createElement("div");
+    p.className = "muted";
+    p.textContent = "Врачи-разметчики не настроены.";
+    ui.raters.appendChild(p);
+  }
+  renderBlocksTable(blocks);
+}
+
+/* строка одного блока (условия) — с действиями и раскрытием повторов */
+function makeBlockRow(blk) {
+  const tr = document.createElement("tr");
+  tr.className = "blockrow" + (blk.voided_at ? " voided" : "");
+  for (let i = 0; i < 6; i++) tr.appendChild(document.createElement("td"));
+  tr.cells[0].textContent = "";                 // участник — в заголовке группы
+  tr.cells[1].textContent = blk.condition;
+  if (blk.trial) {
+    const pill = document.createElement("span");
+    pill.className = "pill"; pill.textContent = "проба";
+    tr.cells[2].appendChild(pill);
+  }
+  if (blk.voided_at) {
+    const pill = document.createElement("span");
+    pill.className = "pill void"; pill.textContent = "исключён";
+    if (blk.void_reason) pill.title = blk.void_reason;
+    tr.cells[2].appendChild(pill);
+  }
+  tr.cells[3].className = "num"; tr.cells[3].textContent = blk.reps;
+  tr.cells[4].className = "num";
+  tr.cells[4].textContent = (blk.created_at || "").replace("T", " ").slice(0, 19);
+  tr.cells[5].className = "keepcol"; tr.cells[5].style.whiteSpace = "nowrap";
+  if (blk.voided_at) {
+    const btn = document.createElement("button");
+    btn.className = "secondary tiny"; btn.textContent = "Восстановить";
+    btn.onclick = () => restoreBlock(blk);
+    tr.cells[5].appendChild(btn);
+  } else if (!blk.trial) {
+    const bEx = document.createElement("button");
+    bEx.className = "secondary tiny"; bEx.textContent = "Исключить";
+    bEx.onclick = () => voidBlock(blk);
+    const bRe = document.createElement("button");
+    bRe.className = "secondary tiny"; bRe.textContent = "Переснять";
+    bRe.style.marginLeft = "4px"; bRe.onclick = () => rerecordBlock(blk);
+    tr.cells[5].append(bEx, bRe);
+  }
+  if (blk.reps + (blk.reps_voided || 0) > 0) {
+    const bReps = document.createElement("button");
+    bReps.className = "secondary tiny"; bReps.textContent = "повторы";
+    bReps.style.marginLeft = "4px";
+    bReps.onclick = () => toggleReps(blk, tr);
+    tr.cells[5].appendChild(bReps);
+  }
+  return tr;
+}
+
+/* таблица блоков, сгруппированная по участнику (сворачиваемая): участник → условия → повторы */
+function renderBlocksTable(blocks) {
+  const tb = ui.blocksTable.tBodies[0];
+  tb.innerHTML = "";
+  const groups = new Map();     // pid → [блоки], в порядке появления
+  for (const blk of blocks) {
+    if (!groups.has(blk.participant_id)) groups.set(blk.participant_id, []);
+    groups.get(blk.participant_id).push(blk);
+  }
+  for (const [pid, list] of groups) {
+    const cohortName = (recCohorts.find(c => pid.startsWith(c.prefix)) || {}).name;
+    const active = list.filter(b => !b.voided_at && !b.trial).length;
+    const voided = list.filter(b => b.voided_at).length;
+    const expanded = expandedPids.has(pid);
+    const h = document.createElement("tr");
+    h.className = "grouphdr";
+    const td = document.createElement("td");
+    td.colSpan = 6;
+    td.innerHTML = `<span class="caret">${expanded ? "▾" : "▸"}</span> <b>${pid}</b>` +
+      (cohortName ? ` · ${cohortName}` : "") +
+      ` · <span class="muted">${active} усл.${voided ? ", исключено " + voided : ""}</span>`;
+    h.appendChild(td);
+    h.onclick = () => {
+      if (expandedPids.has(pid)) expandedPids.delete(pid); else expandedPids.add(pid);
+      renderBlocksTable(blocksCache);   // перерисовать только таблицу блоков
+    };
+    tb.appendChild(h);
+    if (expanded) for (const blk of list) tb.appendChild(makeBlockRow(blk));
+  }
+  ui.blocksEmpty.style.display = blocks.length ? "none" : "block";
+}
+
+/* ---------- отбраковка блоков и удаление данных участника ---------- */
+async function postJSON(url, body) {
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}),
+  });
+  let data = null;
+  try { data = await r.json(); } catch (_) { /* пусто */ }
+  return { ok: r.ok, status: r.status, data };
+}
+
+async function voidBlock(blk) {
+  const reason = (window.prompt(
+    `Исключить блок ${blk.participant_id} / ${blk.condition} из исследования.\n` +
+    "Укажите причину (технический брак, организационная ошибка):", "") || "").trim();
+  if (!reason) return;
+  const res = await postJSON(`/api/blocks/${blk.uid}/void`, { reason });
+  if (!res.ok) { alert("Не удалось исключить: " + (res.data?.error || res.status)); return; }
+  refreshStats();
+}
+
+async function restoreBlock(blk) {
+  const reason = (window.prompt(
+    `Восстановить блок ${blk.participant_id} / ${blk.condition}?\n` +
+    "Причина (необязательно):", "") || "").trim();
+  const res = await postJSON(`/api/blocks/${blk.uid}/restore`, { reason });
+  if (!res.ok) { alert("Не удалось восстановить: " + (res.data?.error || res.status)); return; }
+  refreshStats();
+}
+
+/* Переснять подход: исключить блок и подставить того же участника+условие в форму */
+async function rerecordBlock(blk) {
+  if (!window.confirm(`Переснять ${blk.participant_id} / ${blk.condition}?\n` +
+      "Текущий блок будет исключён, затем запишите подход заново.")) return;
+  const res = await postJSON(`/api/blocks/${blk.uid}/void`,
+    { reason: "пересъёмка подхода (брак)" });
+  if (!res.ok) { alert("Не удалось: " + (res.data?.error || res.status)); return; }
+  const patient = /^NAT\d+$/.test(blk.condition);
+  ui.recMode.value = patient ? "patient" : "healthy";
+  ui.pid.value = blk.participant_id;
+  // зафиксировать ТО ЖЕ условие для пересъёмки: иначе патиент-NATn пересчитается
+  // по счётчику и столкнётся с другой активной пробой (409). Старый блок исключён,
+  // так что сервер примет тот же NATn.
+  forcedCond = patient ? blk.condition : "";
+  await refreshStats();             // обновит blocksCache (исключённый блок выпал)
+  updateParticipantUI(true);
+  if (!patient) { ui.cond.value = blk.condition; updatePatternGuide(); updateStart(); }
+  ui.pid.scrollIntoView({ block: "center" });
+  log(`блок ${blk.participant_id}/${blk.condition} исключён для пересъёмки — запишите заново`);
+}
+
+/* Раскрыть/свернуть список повторов блока с возможностью исключить отдельный клип */
+async function toggleReps(blk, blockTr) {
+  const nxt = blockTr.nextElementSibling;
+  if (nxt && nxt.classList.contains("repsrow")) { nxt.remove(); return; }
+  let reps;
+  try { reps = await fetch(`/api/blocks/${blk.uid}/reps`).then(r => r.json()); }
+  catch (_) { return; }
+  const tr = document.createElement("tr");
+  tr.className = "repsrow";
+  const td = document.createElement("td");
+  td.colSpan = 6;
+  for (const rp of reps) {
+    const line = document.createElement("div");
+    line.className = "repline" + (rp.voided_at ? " voided" : "");
+    const lbl = document.createElement("span");
+    lbl.className = "lbl";
+    lbl.textContent = `повтор ${rp.rep_num} · ${Math.round(rp.end_ms - rp.start_ms)} мс` +
+      (rp.voided_at ? ` · исключён${rp.void_reason ? " (" + rp.void_reason + ")" : ""}` : "");
+    const btn = document.createElement("button");
+    btn.className = "secondary tiny";
+    if (rp.voided_at) { btn.textContent = "Вернуть"; btn.onclick = () => restoreRep(rp.clip_uid); }
+    else { btn.textContent = "Исключить"; btn.onclick = () => voidRep(rp.clip_uid); }
+    line.append(lbl, btn);
+    td.appendChild(line);
+  }
+  tr.appendChild(td);
+  blockTr.after(tr);
+}
+
+async function voidRep(clip) {
+  const reason = (window.prompt("Причина исключения повтора:",
+    "обрезанный/бракованный повтор") || "").trim();
+  if (!reason) return;
+  const res = await postJSON(`/api/reps/${clip}/void`, { reason });
+  if (!res.ok) { alert("Не удалось: " + (res.data?.error || res.status)); return; }
+  refreshStats();
+}
+
+async function restoreRep(clip) {
+  const res = await postJSON(`/api/reps/${clip}/restore`, {});
+  if (!res.ok) { alert("Не удалось: " + (res.data?.error || res.status)); return; }
+  refreshStats();
+}
+
+async function eraseParticipant() {
+  const pid = ui.erasePid.value.trim();
+  if (!pid) { alert("Укажите код участника."); return; }
+  const reason = (window.prompt(
+    `БЕЗВОЗВРАТНОЕ удаление всех данных участника ${pid}.\n` +
+    "Укажите причину (например: отзыв согласия):", "") || "").trim();
+  if (!reason) return;
+  if (!window.confirm(
+    `Удалить ВСЕ данные участника ${pid} без возможности восстановления?\n` +
+    "Видео, ключевые точки, разметка и блоки будут стёрты.")) return;
+  const res = await postJSON(`/api/participants/${encodeURIComponent(pid)}/erase`,
+    { reason, confirm: pid });
+  if (!res.ok) { alert("Не удалось удалить: " + (res.data?.error || res.status)); return; }
+  alert(`Данные участника ${pid} удалены: блоков ${res.data.blocks}, ` +
+        `повторений ${res.data.reps}, разметок ${res.data.annotations}.`);
+  ui.erasePid.value = "";
+  refreshStats();
+}
+ui.btnErase.onclick = () => eraseParticipant();
+
+async function refreshStats() {
+  if (!isResearcher()) return;
+  try {
+    await initCohorts();
+    const cq = statsCohort ? ("?cohort=" + encodeURIComponent(statsCohort)) : "";
+    const [pr, br] = await Promise.all(
+      [fetch("/api/progress" + cq), fetch("/api/blocks")]);
+    if (pr.status === 401 || br.status === 401) {
+      window.location.replace("/"); // сессия истекла — на единый вход
+      return;
+    }
+    if (!pr.ok || !br.ok)
+      throw new Error("HTTP " + (pr.ok ? br.status : pr.status));
+    renderStats(await pr.json(), await br.json());
+  } catch (e) {
+    log("статистика разметки: ошибка обновления (" + e.message + ")");
+  }
+}
+
+let cohortsLoaded = false;
+async function initCohorts() {
+  if (cohortsLoaded) return;
+  cohortsLoaded = true;
+  try {
+    const cs = await fetch("/api/cohorts").then(r => r.ok ? r.json() : []);
+    if (cs && cs.length) {
+      recCohorts = cs;
+      const opts = cs.map(c => `<option value="${c.prefix}">${c.name}</option>`).join("");
+      ui.cohortStats.innerHTML = opts;
+      statsCohort = cs[0].prefix;
+      ui.cohortStats.value = statsCohort;
+      ui.cohortRow.style.display = cs.length >= 2 ? "block" : "none";
+      // селектор когорты на форме записи
+      ui.recCohort.innerHTML = opts;
+      ui.recCohort.value = cs[0].prefix;
+      ui.recCohortRow.style.display = "block";
+      // корректный начальный код участника выставит renderStats после загрузки
+      // списка блоков (здесь кэш ещё пуст — был бы предложен занятый код).
+    }
+  } catch (_) { /* когорты не настроены */ }
+}
+ui.cohortStats.onchange = () => { statsCohort = ui.cohortStats.value; refreshStats(); };
+ui.recCohort.onchange = () => {
+  ui.pid.value = nextParticipantId();   // следующий свободный код в этой когорте
+  updateParticipantUI(true);
+};
+
+ui.btnRefreshStats.onclick = () => refreshStats();
+setInterval(() => { if (isResearcher()) refreshStats(); }, 30_000);
+
+/* ============================ ОСНОВНОЙ ЦИКЛ =========================== */
+async function init() {
+  ui.stateBadge.textContent = "загрузка модели…";
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+  landmarker = await PoseLandmarker.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath: "https://storage.googleapis.com/mediapipe-models/" +
+        "pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
+      delegate: "GPU",
+    },
+    runningMode: "VIDEO", numPoses: 1,
+  });
+  modelReady = true;   // обработка файлов доступна даже без камеры
+  updateProcess();
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { width: 1280, height: 720, frameRate: 30 }, audio: false });
+  ui.cam.srcObject = stream;
+  await ui.cam.play();
+  ui.overlay.width = ui.cam.videoWidth;
+  ui.overlay.height = ui.cam.videoHeight;
+  drawer = new DrawingUtils(ui.overlay.getContext("2d"));
+  ui.stateBadge.textContent = isResearcher()
+    ? "готов — начните блок" : "готов — требуется вход исследователя";
+  cameraReady = true;
+  updateStart();
+  log(`камера ${ui.cam.videoWidth}×${ui.cam.videoHeight}, модель загружена`);
+  loop();
+}
+
+/* Ориентир исходной позы: человек СИДИТ на стуле, руки опущены.
+   Помогает участнику занять правильное положение до старта и во время
+   калибровки. Рисунок симметричен относительно вертикали — CSS-зеркало
+   превью его не искажает (текст на canvas не рисуем: он бы отзеркалился). */
+function drawPoseGuide(ctx, w, h) {
+  const cx = w / 2;
+  const u = h / 100; // масштабная единица
+  const line = (x1, y1, x2, y2) => {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  };
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.setLineDash([1.6 * u, 1.2 * u]);
+  // стул (сиденье + ножки) — серым
+  ctx.strokeStyle = "rgba(107,114,128,.45)";
+  ctx.lineWidth = Math.max(2, 0.5 * u);
+  line(cx - 16 * u, 54 * u, cx + 16 * u, 54 * u);
+  line(cx - 15 * u, 54 * u, cx - 15 * u, 78 * u);
+  line(cx + 15 * u, 54 * u, cx + 15 * u, 78 * u);
+  // фигура — акцентным
+  ctx.strokeStyle = "rgba(79,70,229,.55)";
+  ctx.lineWidth = Math.max(3, 0.6 * u);
+  ctx.beginPath();                       // голова
+  ctx.arc(cx, 18 * u, 5 * u, 0, Math.PI * 2);
+  ctx.stroke();
+  line(cx, 23 * u, cx, 52 * u);          // торс: шея -> таз
+  line(cx - 11 * u, 30 * u, cx + 11 * u, 30 * u);   // плечи
+  line(cx - 11 * u, 30 * u, cx - 13 * u, 52 * u);   // руки опущены
+  line(cx + 11 * u, 30 * u, cx + 13 * u, 52 * u);
+  line(cx - 7 * u, 52 * u, cx + 7 * u, 52 * u);     // таз
+  line(cx - 7 * u, 52 * u, cx - 10 * u, 60 * u);    // бёдра (сидя)
+  line(cx + 7 * u, 52 * u, cx + 10 * u, 60 * u);
+  line(cx - 10 * u, 60 * u, cx - 10 * u, 78 * u);   // голени
+  line(cx + 10 * u, 60 * u, cx + 10 * u, 78 * u);
+  ctx.restore();
+}
+
+let lastVideoTime = -1;
+function loop() {
+  const t = performance.now();
+  if (ui.cam.currentTime !== lastVideoTime) {
+    lastVideoTime = ui.cam.currentTime;
+    const res = landmarker.detectForVideo(ui.cam, t);
+    const ctx = ui.overlay.getContext("2d");
+    ctx.clearRect(0, 0, ui.overlay.width, ui.overlay.height);
+    // ориентир позы: до старта блока и во время калибровки
+    if (!block || block.state === "calibrating")
+      drawPoseGuide(ctx, ui.overlay.width, ui.overlay.height);
+    if (res.landmarks && res.landmarks.length) {
+      const raw = res.landmarks[0];
+      /* EMA-сглаживание */
+      if (!smoothed) smoothed = raw.map(p => ({ ...p }));
+      else raw.forEach((p, i) => {
+        smoothed[i].x += EMA_ALPHA * (p.x - smoothed[i].x);
+        smoothed[i].y += EMA_ALPHA * (p.y - smoothed[i].y);
+        smoothed[i].z += EMA_ALPHA * (p.z - smoothed[i].z);
+        smoothed[i].visibility = p.visibility;
+      });
+      drawer.drawConnectors(smoothed, PoseLandmarker.POSE_CONNECTIONS,
+        { color: "#36d399", lineWidth: 3 });
+      drawer.drawLandmarks(smoothed, { color: "#fff", radius: 3 });
+
+      if (block) {
+        const m = frameMetrics(smoothed, block.baseline);
+        fsmStep(block, t, m, smoothed);
+        const v = block.baseline ? violations(m) : null;
+        for (const k of METRICS) {
+          const chip = document.getElementById("chip_" + k);
+          chip.className = "chip " + (!v ? "" : v[k] ? "viol" : "clean");
+          chip.textContent = METRIC_RU[k] + (!v ? "" : v[k] ? " ✗" : " ✓");
+        }
+        const ruState = { calibrating:"калибровка — сидеть неподвижно",
+          rest:"исходное положение", lift:"подъём", hold:"удержание",
+          lower:"опускание" }[block.state];
+        ui.stateBadge.textContent = block.autoFinishing
+          ? "готово — сохранение блока…"
+          : `${ruState} · угол ${m.elev.toFixed(0)}°`;
+        block.frames.push({
+          t: Math.round(t - block.t0), rep: block.rep, phase: block.state,
+          metrics: {
+            elbow_min_deg: +m.elbowMin.toFixed(1),
+            asym_deg: +m.asym.toFixed(1),
+            elev_deg: +m.elev.toFixed(1),
+            shoulder_rise: +m.shoulderRise.toFixed(4),
+            trunk_rad: +m.trunk.toFixed(4),
+            head_tilt_deg: +m.headTilt.toFixed(2),
+          },
+          landmarks: smoothed.map(p =>
+            [+p.x.toFixed(4), +p.y.toFixed(4), +p.z.toFixed(4),
+             +(p.visibility ?? 0).toFixed(2)]),
+        });
+      }
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+/* ============================ КНОПКИ ================================== */
+ui.btnStart.onclick = () => {
+  block = newBlock();
+  const b = block; // замыкание: btnStop обнуляет block до финального чанка
+  smoothed = null; // сброс EMA между блоками
+  ui.repTable.tBodies[0].innerHTML = "";
+  ui.repBadge.textContent = b.nReps > 100 ? "повт.: 0" : `повт.: 0/${b.nReps}`;
+  b.recorder = new MediaRecorder(ui.cam.srcObject,
+    { mimeType: MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+        ? "video/webm;codecs=vp9" : "video/webm" });
+  b.recorder.ondataavailable = e => { if (e.data.size) b.chunks.push(e.data); };
+  b.recorder.onerror = e => log("ошибка записи: " + (e.error || e));
+  b.recorder.start(1000);
+  ui.btnStart.disabled = true;
+  ui.btnStop.disabled = false;
+  updateProcess(); // во время живой записи обработка файла недоступна
+  ui.pid.disabled = ui.cond.disabled = ui.nreps.disabled = ui.trial.disabled = true;
+  log(`старт блока ${block.pid}_${block.cond}` +
+      (block.trial ? " (проба)" : "") + `, порог ${THR.version}`);
+};
+
+function stopBlock(opts = {}) {
+  if (!block) return;
+  const b = block;
+  if (!opts.auto && ["lift","hold","lower"].includes(b.state))
+    log("ВНИМАНИЕ: блок остановлен посреди повторения — последнее повторение не засчитано");
+  finishBlock(b);
+  block = null;
+  updateStart();
+  ui.btnStop.disabled = true;
+  ui.pid.disabled = ui.cond.disabled = ui.nreps.disabled = ui.trial.disabled = false;
+  ui.stateBadge.textContent = "готов — начните блок";
+  METRICS.forEach(k => {
+    const chip = document.getElementById("chip_" + k);
+    chip.className = "chip";
+    chip.textContent = METRIC_RU[k];
+  });
+}
+ui.btnStop.onclick = () => stopBlock();
+
+init().catch(e => {
+  ui.stateBadge.textContent = "ошибка";
+  log("ОШИБКА ИНИЦИАЛИЗАЦИИ: " + e.message +
+      "\nПроверьте доступ к камере и подключение к сети (CDN модели).");
+});
+</script>
+</body>
+</html>

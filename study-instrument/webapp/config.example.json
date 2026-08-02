@@ -1,0 +1,14 @@
+{
+  "researcher_token": "CHANGE-ME-RESEARCHER",
+  "raters": [
+    {"id": "R1", "name": "Врач 1", "token": "CHANGE-ME-R1", "display_name": "Имя 1", "gender": "m"},
+    {"id": "R2", "name": "Врач 2", "token": "CHANGE-ME-R2", "display_name": "Имя 2", "gender": "f"}
+  ],
+  "data_dir": "data",
+  "max_upload_mb": 300,
+  "tz_offset_hours": 3,
+  "cohorts": [
+    {"name": "Валидация", "prefix": "V"},
+    {"name": "Эксперимент (пилот)", "prefix": "P"}
+  ]
+}

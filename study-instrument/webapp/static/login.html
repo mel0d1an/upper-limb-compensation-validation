@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Исследование — вход</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --accent:#4f46e5; --accent-h:#4338ca; --accent-soft:#eef2ff;
+          --bad:#dc2626; --bg:#f4f5fa; --card:#ffffff; --line:#e4e7ef;
+          --line-strong:#d2d6e0; --text:#16181d; --muted:#6b7280; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.55 -apple-system,"Segoe UI",Roboto,sans-serif;
+         background:var(--bg); color:var(--text);
+         min-height:100vh; display:flex; align-items:center; justify-content:center; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px;
+          box-shadow:0 1px 3px rgba(16,24,40,.06); padding:28px 26px;
+          width:360px; text-align:center; }
+  .brand { display:flex; align-items:center; justify-content:center; gap:9px;
+           margin-bottom:6px; }
+  .logoDot { width:10px; height:10px; border-radius:50%; background:var(--accent); }
+  h1 { margin:0; font-size:18px; font-weight:650; letter-spacing:-0.01em; }
+  p.sub { color:var(--muted); font-size:13px; margin:8px 0 18px; }
+  input { width:100%; padding:10px 12px; border:1px solid var(--line-strong);
+          border-radius:8px; font-size:15px; text-align:center;
+          transition:border-color .15s, box-shadow .15s; }
+  input:focus { outline:none; border-color:var(--accent);
+                box-shadow:0 0 0 3px var(--accent-soft); }
+  button { width:100%; margin-top:12px; padding:10px 16px; border:0;
+           border-radius:8px; font-size:15px; cursor:pointer;
+           background:var(--accent); color:#fff; font-weight:600;
+           transition:background .15s; }
+  button:hover { background:var(--accent-h); }
+  button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  button:disabled { opacity:.45; cursor:default; }
+  #err { color:var(--bad); font-size:13px; min-height:18px; margin-top:10px; }
+  .hint { color:var(--muted); font-size:12px; margin-top:14px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="brand"><span class="logoDot"></span><h1>Исследование движений</h1></div>
+  <p class="sub">Введите ваш токен доступа — система сама определит вашу роль.</p>
+  <input id="token" type="password" placeholder="Токен доступа" autocomplete="off" autofocus>
+  <button id="go">Войти</button>
+  <div id="err" role="alert"></div>
+  <p class="hint">Исследователь попадёт в кабинет записи и статистики,<br>
+    врач-аннотатор — на страницу разметки видео.</p>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const route = role => {
+  window.location.replace(role === "researcher" ? "/record" : "/annotate");
+};
+
+async function login() {
+  $("err").textContent = "";
+  const token = $("token").value.trim();
+  if (!token) { $("err").textContent = "Введите токен."; return; }
+  $("go").disabled = true;
+  try {
+    const r = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+    if (r.status === 401) { $("err").textContent = "Неверный токен."; return; }
+    if (!r.ok) {
+      $("err").textContent = `Ошибка сервера (${r.status}), попробуйте ещё раз.`;
+      return;
+    }
+    route((await r.json()).role);
+  } catch {
+    $("err").textContent = "Сервер недоступен. Проверьте соединение.";
+  } finally {
+    $("go").disabled = false;
+  }
+}
+
+$("go").onclick = login;
+$("token").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
+
+// уже залогинен — сразу в свой раздел
+fetch("/api/me").then(r => r.ok ? r.json() : null).then(me => {
+  if (me) route(me.role);
+}).catch(() => {});
+</script>
+</body>
+</html>

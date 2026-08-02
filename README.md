@@ -37,6 +37,11 @@ data/
   participants.csv       cohort membership and repetition counts
   thresholds.csv         the calibrated operating points and the timing rule
   DATA_DICTIONARY.md     every column, its units and its meaning
+study-instrument/
+  OVERVIEW.md            what the instrument is, and what is deliberately absent
+  webapp/                the recording and annotation application used to collect the data
+  analysis.py            detection metrics and the threshold sweep
+  protocol.md            the recording protocol as executed
 code/
   reproduce.py           recomputes the reported numbers and verifies them
   figure_elbow.py        the elbow criterion behind Figure 4 of the paper
@@ -60,6 +65,12 @@ docs/
 consent obtained covers research use and publication of anonymised results; it
 does not cover public release of the recordings themselves. They remain on a
 restricted laboratory server under pseudonymous codes.
+
+**The deployed application.** What is published under `study-instrument/` is the research
+build that produced these data — the recording and annotation software, and the offline
+recomputation that defines every metric. Its live configuration is withheld because it held
+the access tokens and given names of the two annotating clinicians; `config.example.json`
+carries placeholders in its place.
 
 **The per-frame keypoint series.** Derived skeletal coordinates are health data
 and, as continuous per-person kinematics, are not equivalent to the aggregated

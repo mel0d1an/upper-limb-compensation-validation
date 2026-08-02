@@ -1,0 +1,10 @@
+services:
+  study:
+    build: .
+    restart: unless-stopped
+    # наружу только на localhost — публичный доступ строго через nginx с HTTPS
+    ports:
+      - "127.0.0.1:8742:8742"
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - ./data:/app/data

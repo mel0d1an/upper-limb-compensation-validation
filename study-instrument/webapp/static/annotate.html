@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Разметка видео</title>
+<style>
+  :root {
+    --accent: #4f46e5;
+    --accent-h: #4338ca;
+    --accent-soft: #eef2ff;
+    --ok: #16a34a;
+    --ok-soft: #f0fdf4;
+    --bad: #dc2626;
+    --bad-soft: #fef2f2;
+    --warn: #b45309;
+    --warn-soft: #fffbeb;
+    --bg: #f4f5fa;
+    --card: #ffffff;
+    --line: #e4e7ef;
+    --line-strong: #d2d6e0;
+    --text: #16181d;
+    --muted: #6b7280;
+    --shadow: 0 1px 3px rgba(16, 24, 40, .06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+    min-height: 100vh;
+  }
+  h1, h2, h3 { font-weight: 650; letter-spacing: -0.01em; }
+  .hidden { display: none !important; }
+  .muted { color: var(--muted); }
+  button { font: inherit; cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button:disabled { opacity: .45; cursor: default; }
+
+  /* ---------- логотип-точка ---------- */
+  .logo-dot {
+    display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent); flex: none;
+  }
+
+  /* ---------- баннер ошибок сети ---------- */
+  .banner {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 100; max-width: 560px; width: calc(100% - 32px);
+    background: var(--warn-soft); border: 1px solid #fde68a; color: var(--warn);
+    border-radius: 12px; padding: 10px 14px; box-shadow: var(--shadow);
+    display: flex; align-items: center; gap: 10px; font-size: 14px;
+  }
+  .banner button {
+    border: 1px solid var(--line-strong); background: #fff; color: var(--warn);
+    border-radius: 8px; padding: 4px 12px; font-size: 13px; font-weight: 600;
+    transition: background .15s, box-shadow .15s;
+  }
+  .banner button:hover { background: #f8f9fc; }
+  .banner .close { border: none; background: transparent; font-size: 16px; padding: 2px 6px; margin-left: -4px; }
+  .banner .close:hover { background: transparent; }
+  .banner span { flex: 1; }
+
+  /* ---------- общие карточки ---------- */
+  .screen { min-height: 100vh; display: flex; flex-direction: column; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 12px; box-shadow: 0 1px 3px rgba(16, 24, 40, .06); padding: 16px 18px;
+  }
+
+  /* ---------- вход ---------- */
+  #loginScreen { align-items: center; justify-content: center; padding: 20px; }
+  .login-card { width: 100%; max-width: 380px; text-align: center; }
+  .login-card .logo-dot { display: block; margin: 4px auto 14px; }
+  .login-card h1 { font-size: 20px; margin: 0 0 6px; }
+  .login-card p { margin: 0 0 16px; font-size: 14px; }
+  .login-card input {
+    width: 100%; padding: 8px 10px; font: inherit;
+    border: 1px solid var(--line-strong); border-radius: 8px; margin-bottom: 12px;
+    outline: none; transition: border-color .15s, box-shadow .15s;
+  }
+  .login-card input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .primary {
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 8px; padding: 9px 16px; font-size: 14px; font-weight: 600; width: 100%;
+    transition: background .15s, box-shadow .15s;
+  }
+  .primary:hover { background: var(--accent-h); }
+  .primary:disabled { background: var(--accent); }
+  .error { color: var(--bad); font-size: 14px; margin: 10px 0 0; }
+  .note { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
+
+  /* ---------- рабочий экран ---------- */
+  header {
+    background: var(--card); border-bottom: 1px solid var(--line);
+    padding: 10px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  header .who { font-size: 16px; font-weight: 650; letter-spacing: -0.01em; }
+  .progresswrap { flex: 1; min-width: 220px; display: flex; align-items: center; gap: 10px; }
+  .progressbar { flex: 1; height: 8px; background: #e9ecf3; border-radius: 999px; overflow: hidden; }
+  .progressbar > div {
+    height: 100%; background: linear-gradient(90deg, var(--accent), #6366f1);
+    width: 0%; border-radius: 999px; transition: width .4s;
+  }
+  .progresstext { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .linkbtn {
+    border: none; background: transparent; color: var(--muted); font-size: 13px;
+    text-decoration: underline; padding: 2px; transition: color .15s;
+  }
+  .linkbtn:hover { color: var(--text); }
+
+  main {
+    flex: 1; width: 100%; max-width: 1060px; margin: 0 auto; padding: 18px 20px 8px;
+    display: grid; grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); gap: 18px;
+    align-items: start;
+  }
+  @media (max-width: 820px) { main { grid-template-columns: 1fr; } }
+
+  .clip-title { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .clip-title h2 { font-size: 17px; margin: 0; }
+  .badge-done {
+    font-size: 12px; font-weight: 600; color: var(--ok); background: var(--ok-soft);
+    border: 1px solid #bbf7d0; border-radius: 999px; padding: 3px 10px;
+  }
+  .norm-badge {
+    margin: 10px 0 2px; padding: 8px 12px; border-radius: 8px; font-size: 14px;
+    font-weight: 600; color: var(--ok); background: var(--ok-soft);
+    border: 1px solid #bbf7d0;
+  }
+  .norm-badge.off { display: none; }
+  .cohortSel {
+    font-size: 13px; padding: 5px 8px; border: 1px solid var(--line-strong);
+    border-radius: 8px; background: #fff; color: var(--text);
+  }
+  .cohortSel.hidden { display: none; }
+  video {
+    width: 100%; max-height: 56vh; background: #0d1117; border-radius: 10px; display: block;
+    outline: none;
+  }
+  .video-controls { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .vbtn {
+    background: #fff; border: 1px solid var(--line-strong); border-radius: 8px;
+    padding: 9px 16px; font-size: 14px; font-weight: 600; color: var(--text);
+    transition: background .15s, box-shadow .15s;
+  }
+  .vbtn:hover { background: #f8f9fc; }
+  .nav-row { display: flex; gap: 10px; margin-top: 12px; }
+  .nav-row .vbtn { flex: 1; }
+  .vbtn:disabled { background: #fff; }
+
+  /* ---------- панель разметки ---------- */
+  .panel h3 { margin: 0 0 4px; font-size: 16px; }
+  .panel .hint { font-size: 13px; color: var(--muted); margin: 0 0 14px; }
+  .flags { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .flagbtn {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    background: #fff; border: 1.5px solid var(--line-strong); border-radius: 10px;
+    padding: 11px 14px; font-size: 15px; font-weight: 600; text-align: left; color: var(--text);
+    transition: background .15s, border-color .15s, color .15s, box-shadow .15s;
+  }
+  .flagbtn:hover { background: #f8f9fc; }
+  .flagbtn .key {
+    font-size: 12px; font-weight: 600; color: var(--muted); border: 1px solid var(--line);
+    border-radius: 999px; padding: 1px 8px; min-width: 24px; text-align: center; background: #f1f3f8;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+  .flagbtn .mark { margin-left: auto; font-size: 13px; color: transparent; transition: color .15s; }
+  .flagbtn.on { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+  .flagbtn.on:hover { background: var(--bad-soft); }
+  .flagbtn.on .mark { color: var(--bad); }
+  .flagbtn.on .key { background: #fff; color: var(--bad); border-color: #fecaca; }
+
+  .conf-row { margin-bottom: 14px; }
+  .conf-row .label { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .conf-btns { display: flex; }
+  .confbtn {
+    flex: 1; background: #fff; border: 1px solid var(--line-strong); border-radius: 0;
+    margin-left: -1px; position: relative;
+    padding: 8px 4px; font-size: 13px; font-weight: 600; color: var(--text);
+    transition: background .15s, border-color .15s, color .15s;
+  }
+  .confbtn:first-child { margin-left: 0; border-radius: 8px 0 0 8px; }
+  .confbtn:last-child { border-radius: 0 8px 8px 0; }
+  .confbtn:hover { background: #f8f9fc; }
+  .confbtn:focus-visible { z-index: 2; }
+  .confbtn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); z-index: 1; }
+
+  textarea {
+    width: 100%; min-height: 64px; resize: vertical; font: inherit;
+    border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px 10px; outline: none;
+    margin-bottom: 14px; transition: border-color .15s, box-shadow .15s;
+  }
+  textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  #saveMsg { font-size: 13px; color: var(--bad); margin: 8px 0 0; min-height: 18px; }
+
+  footer {
+    text-align: center; font-size: 12.5px; color: var(--muted);
+    padding: 10px 20px 18px;
+  }
+  kbd {
+    font-family: inherit; font-size: 12px; background: #fff; border: 1px solid var(--line-strong);
+    border-bottom-width: 2px; border-radius: 5px; padding: 0 5px;
+  }
+
+  /* ---------- готово ---------- */
+  #doneScreen { align-items: center; justify-content: center; padding: 20px; }
+  .done-card { max-width: 420px; width: 100%; text-align: center; }
+  .done-card .big { font-size: 40px; margin-bottom: 8px; color: var(--ok); }
+  .done-card h1 { font-size: 20px; margin: 0 0 8px; }
+  .done-card p { margin: 0 0 18px; }
+  .done-card .vbtn { width: 100%; }
+
+  /* ======== геймификация: табло «врач против врача» ======== */
+  .score-pill {
+    position: fixed; left: 14px; bottom: 14px; z-index: 80;
+    display: flex; align-items: center; gap: 9px;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 999px; padding: 7px 13px 7px 11px;
+    box-shadow: 0 4px 16px rgba(16, 24, 40, .12);
+    font-size: 13px; cursor: pointer; user-select: none;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .score-pill:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(16, 24, 40, .16); }
+  .score-pill .trophy { font-size: 15px; }
+  .score-side { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; color: var(--muted); }
+  .score-side .nm { font-weight: 600; color: var(--text); }
+  .score-side .ct { font-variant-numeric: tabular-nums; font-weight: 700; }
+  .score-side.lead .nm, .score-side.lead .ct { color: var(--accent); }
+  .score-side.lead .ct::after { content: '▲'; font-size: 9px; margin-left: 2px; vertical-align: 2px; }
+  .score-vs { color: var(--line-strong); font-weight: 700; font-size: 11px; }
+  .score-mini { position: relative; width: 50px; height: 6px; border-radius: 999px; background: var(--accent-soft); overflow: hidden; }
+  .score-mini > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 999px; transition: width .5s ease; }
+
+  /* ---------- всплывающая ачивка ---------- */
+  .ach-overlay { position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+  .ach-overlay.show { pointer-events: auto; }
+  .ach-flash { position: absolute; inset: 0; opacity: 0; background: radial-gradient(circle at 50% 38%, var(--ach-color, #4f46e5) 0%, transparent 60%); }
+  .ach-overlay.show .ach-flash { animation: achFlash .9s ease-out forwards; }
+  @keyframes achFlash { 0% { opacity: 0; } 25% { opacity: .20; } 100% { opacity: 0; } }
+  .ach-card {
+    --ach-color: #4f46e5;
+    position: relative; min-width: 280px; max-width: 360px; width: calc(100% - 48px);
+    background: var(--card); border-radius: 18px; padding: 22px 22px 18px; text-align: center;
+    box-shadow: 0 18px 50px rgba(16, 24, 40, .28); border: 1px solid var(--line);
+    transform: translateY(16px) scale(.9); opacity: 0;
+  }
+  .ach-overlay.show .ach-card { animation: achIn .5s cubic-bezier(.2, 1.3, .35, 1) forwards; }
+  .ach-overlay.show .ach-card.shake { animation: achIn .5s cubic-bezier(.2, 1.3, .35, 1) forwards, achShake .45s .5s 2; }
+  .ach-overlay.hide .ach-card { animation: achOut .25s ease-in forwards; }
+  @keyframes achIn { to { transform: translateY(0) scale(1); opacity: 1; } }
+  @keyframes achOut { to { transform: translateY(-8px) scale(.96); opacity: 0; } }
+  @keyframes achShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-7px); } 75% { transform: translateX(7px); } }
+  .ach-card::before {
+    content: ''; position: absolute; inset: 0; border-radius: 18px; padding: 1.5px;
+    background: linear-gradient(135deg, var(--ach-color), transparent 65%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;
+  }
+  .ach-emoji { font-size: 54px; line-height: 1; display: inline-block; }
+  .ach-overlay.show .ach-emoji { animation: achPop .6s cubic-bezier(.2, 1.5, .4, 1) both; }
+  @keyframes achPop { 0% { transform: scale(0) rotate(-25deg); } 70% { transform: scale(1.18) rotate(7deg); } 100% { transform: scale(1) rotate(0); } }
+  .ach-kicker { margin-top: 6px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ach-color); font-weight: 700; }
+  .ach-title { margin: 2px 0 6px; font-size: 22px; font-weight: 750; letter-spacing: -.01em; }
+  .ach-text { font-size: 14px; color: var(--muted); line-height: 1.5; }
+  .ach-dismiss { margin-top: 14px; font-size: 11.5px; color: var(--line-strong); }
+  /* тематические акценты */
+  .ach-fire  { --ach-color: #f97316; }
+  .ach-speed { --ach-color: #0ea5e9; }
+  .ach-dust  { --ach-color: #a16207; }
+  .ach-chart { --ach-color: #16a34a; }
+  .ach-freeze{ --ach-color: #0891b2; }
+  .ach-night { --ach-color: #6366f1; }
+  .ach-dawn  { --ach-color: #f59e0b; }
+  .ach-sweep { --ach-color: #14b8a6; }
+  .ach-target{ --ach-color: #dc2626; }
+  .ach-cal   { --ach-color: #7c3aed; }
+  .ach-mile  { --ach-color: #4f46e5; }
+  .ach-crown { --ach-color: #eab308; }
+  .ach-overlay.show.ach-fire .ach-emoji { animation: achPop .6s both, fireFlicker 1.2s .6s infinite; }
+  @keyframes fireFlicker { 0%, 100% { filter: drop-shadow(0 0 1px #f97316); } 50% { filter: drop-shadow(0 0 13px #fb923c); } }
+
+  /* ---------- конфетти ---------- */
+  .confetti { position: fixed; inset: 0; z-index: 119; pointer-events: none; overflow: hidden; }
+  .confetti i { position: absolute; top: -14px; width: 9px; height: 14px; opacity: .92; will-change: transform; animation: confFall linear forwards; }
+  @keyframes confFall { to { transform: translateY(110vh) rotate(720deg); } }
+
+  /* ---------- полка достижений ---------- */
+  .badge-modal { position: fixed; inset: 0; z-index: 130; display: none; align-items: center; justify-content: center; background: rgba(16, 24, 40, .45); padding: 20px; }
+  .badge-modal.show { display: flex; }
+  .badge-card { background: var(--card); border-radius: 16px; padding: 20px; width: 100%; max-width: 420px; max-height: 80vh; overflow: auto; box-shadow: 0 18px 50px rgba(16, 24, 40, .3); }
+  .badge-card h3 { margin: 0; font-size: 17px; }
+  .gallery-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .gallery-count { font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+  .gallery-prog { height: 6px; border-radius: 999px; background: var(--accent-soft); overflow: hidden; margin: 10px 0 4px; }
+  .gallery-prog > i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width .5s ease; }
+  .gallery-cat { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 14px 0 2px; }
+  .gallery-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .gitem { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+  .gitem.locked { background: var(--bg); }
+  .gitem.locked .gemoji { filter: grayscale(1); opacity: .55; }
+  .gitem.locked .gtitle { color: var(--muted); }
+  .gemoji { font-size: 28px; line-height: 1; flex: none; width: 34px; text-align: center; }
+  .gbody { flex: 1; min-width: 0; }
+  .gtitle { font-weight: 650; font-size: 14px; }
+  .gdesc { font-size: 12px; color: var(--muted); line-height: 1.35; }
+  .gtiers { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+  .gtiers span { font-size: 10.5px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .gtiers span.on { background: var(--ok-soft); border-color: #bbf7d0; color: var(--ok); font-weight: 600; }
+  .gstat { flex: none; font-size: 13px; font-weight: 700; min-width: 28px; text-align: right; }
+  .gitem.earned .gstat { color: var(--ok); }
+  .gitem.locked .gstat { color: var(--line-strong); }
+  .badge-close { margin-top: 16px; width: 100%; }
+  @media (max-width: 480px) { .score-pill { font-size: 12px; left: 8px; bottom: 8px; gap: 7px; padding: 6px 11px 6px 9px; } }
+  @media (prefers-reduced-motion: reduce) {
+    .ach-overlay.show .ach-card, .ach-overlay.show .ach-card.shake,
+    .ach-overlay.show .ach-emoji, .ach-overlay.show .ach-flash,
+    .confetti i, .ach-overlay.show.ach-fire .ach-emoji { animation: none !important; }
+    .ach-card { transform: none; opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+<div id="banner" class="banner hidden" role="alert">
+  <span id="bannerText"></span>
+  <button id="bannerRetry" type="button">Повторить</button>
+  <button id="bannerClose" class="close" type="button" title="Скрыть">&times;</button>
+</div>
+
+<!-- ============ геймификация ============ -->
+<div id="scorePill" class="score-pill hidden" title="Счёт разметки — нажмите, чтобы увидеть достижения">
+  <span class="trophy" aria-hidden="true">&#127942;</span>
+  <span class="score-side" id="scoreMe"><span class="nm"></span><span class="ct"></span></span>
+  <span class="score-vs" id="scoreVs">vs</span>
+  <span class="score-side" id="scoreRival"><span class="nm"></span><span class="ct"></span></span>
+  <span class="score-mini" id="scoreMini"><i id="scoreMiniFill"></i></span>
+</div>
+<div id="achOverlay" class="ach-overlay" aria-live="polite"></div>
+<div id="confetti" class="confetti hidden" aria-hidden="true"></div>
+<div id="badgeModal" class="badge-modal" role="dialog" aria-modal="true" aria-label="Достижения">
+  <div class="badge-card">
+    <div class="gallery-head">
+      <h3>Достижения</h3>
+      <span class="gallery-count" id="galleryCount"></span>
+    </div>
+    <div class="gallery-prog"><i id="galleryProgFill"></i></div>
+    <div class="gallery-list" id="galleryList"></div>
+    <button class="vbtn badge-close" id="badgeClose" type="button">Закрыть</button>
+  </div>
+</div>
+
+<!-- ============ экран входа ============ -->
+<div id="loginScreen" class="screen hidden">
+  <div class="card login-card">
+    <span class="logo-dot" aria-hidden="true"></span>
+    <h1>Слепая разметка видео</h1>
+    <p class="muted">Введите токен доступа, выданный исследователем.</p>
+    <input id="tokenInput" type="password" placeholder="Токен доступа" autocomplete="off">
+    <button id="loginBtn" class="primary" type="button">Войти</button>
+    <p id="loginError" class="error hidden"></p>
+    <p id="loginNote" class="note hidden"></p>
+  </div>
+</div>
+
+<!-- ============ рабочий экран ============ -->
+<div id="workScreen" class="screen hidden">
+  <header>
+    <span class="logo-dot" aria-hidden="true"></span>
+    <span class="who" id="raterName"></span>
+    <select id="cohortSel" class="cohortSel hidden" title="Когорта для разметки"></select>
+    <div class="progresswrap">
+      <div class="progressbar"><div id="progressFill"></div></div>
+      <span class="progresstext" id="progressText"></span>
+    </div>
+    <button id="logoutBtn" class="linkbtn" type="button">Выйти</button>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="clip-title">
+        <h2 id="clipTitle">Клип</h2>
+        <span id="clipDoneBadge" class="badge-done hidden">размечено</span>
+      </div>
+      <video id="vid" muted playsinline preload="auto"></video>
+      <div class="video-controls">
+        <button id="replayBtn" class="vbtn" type="button">&#9654; Просмотреть ещё раз</button>
+        <button id="slowBtn" class="vbtn" type="button">Замедленно (0.5&times;)</button>
+      </div>
+      <div class="nav-row">
+        <button id="prevBtn" class="vbtn" type="button">&larr; Предыдущий</button>
+        <button id="nextBtn" class="vbtn" type="button">Следующий &rarr;</button>
+      </div>
+    </section>
+
+    <section class="card panel">
+      <h3>Компенсаторные движения</h3>
+      <p class="hint">Отметьте компенсации, которые видите в этом повторении. Если выполнение чистое&nbsp;&mdash; не включайте ни одной кнопки: это и есть «норма».</p>
+      <div class="flags" id="flags"></div>
+      <div id="normBadge" class="norm-badge off">&#10003; Без компенсаций (норма)</div>
+      <div class="conf-row">
+        <div class="label">Насколько вы уверены в оценке?</div>
+        <div class="conf-btns" id="confBtns">
+          <button class="confbtn" data-conf="1" type="button" aria-pressed="false">1 &mdash; низкая</button>
+          <button class="confbtn" data-conf="2" type="button" aria-pressed="false">2 &mdash; средняя</button>
+          <button class="confbtn" data-conf="3" type="button" aria-pressed="false">3 &mdash; высокая</button>
+        </div>
+      </div>
+      <textarea id="comments" placeholder="Комментарий (необязательно)"></textarea>
+      <button id="saveBtn" class="primary" type="button">Сохранить и далее</button>
+      <p id="saveMsg" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <footer>
+    Горячие клавиши: <kbd>1</kbd>&ndash;<kbd>5</kbd> &mdash; метки,
+    <kbd>Пробел</kbd> &mdash; повтор,
+    <kbd>Enter</kbd> &mdash; сохранить и далее (в поле комментария &mdash; <kbd>Ctrl</kbd>+<kbd>Enter</kbd>)
+  </footer>
+</div>
+
+<!-- ============ экран «готово» ============ -->
+<div id="doneScreen" class="screen hidden">
+  <div class="card done-card">
+    <div class="big">&#10003;</div>
+    <h1>Готово, спасибо!</h1>
+    <p id="doneText" class="muted"></p>
+    <button id="reviewBtn" class="vbtn" type="button">Просмотреть клипы ещё раз</button>
+    <button id="doneLogoutBtn" class="vbtn" type="button" style="margin-top:10px">Выйти / сменить токен</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  var FLAGS = [
+    { key: 'elbow',     label: 'Локоть' },
+    { key: 'asymmetry', label: 'Асимметрия' },
+    { key: 'shoulder',  label: 'Плечо' },
+    { key: 'trunk',     label: 'Корпус' },
+    { key: 'head',      label: 'Голова' }
+  ];
+
+  var state = {
+    me: null,
+    items: [],
+    total: 0,
+    done: 0,
+    idx: -1,
+    saving: false,
+    cohort: ''   // выбранный префикс когорты ('' = все/не настроены)
+  };
+  var seg = { start: 0, end: 0 };
+  var vid = $('vid');
+
+  /* ================= API ================= */
+
+  function api(path, opts) {
+    opts = opts || {};
+    var init = { method: opts.method || 'GET', credentials: 'same-origin', headers: {} };
+    if (opts.json !== undefined) {
+      init.headers['Content-Type'] = 'application/json';
+      init.body = JSON.stringify(opts.json);
+    }
+    return fetch(path, init).then(function (resp) {
+      return resp.json().catch(function () { return null; }).then(function (data) {
+        if (!resp.ok) {
+          var err = new Error((data && data.error) || ('Ошибка сервера (' + resp.status + ')'));
+          err.status = resp.status;
+          throw err;
+        }
+        return data;
+      });
+    }, function () {
+      var err = new Error('Нет соединения с сервером');
+      err.network = true;
+      throw err;
+    });
+  }
+
+  /* выполнить действие; при сбое — баннер с кнопкой «Повторить» */
+  function attempt(fn) {
+    hideBanner();
+    fn().catch(function (err) {
+      if (err.status === 401 && state.me) {
+        state.me = null;
+        window.location.replace('/'); // сессия истекла — на единый вход
+        return;
+      }
+      showBanner(err.message || 'Что-то пошло не так', function () { attempt(fn); });
+    });
+  }
+
+  /* ================= баннер ================= */
+
+  var bannerRetryFn = null;
+  function showBanner(text, retryFn) {
+    $('bannerText').textContent = text;
+    bannerRetryFn = retryFn || null;
+    $('bannerRetry').classList.toggle('hidden', !retryFn);
+    $('banner').classList.remove('hidden');
+  }
+  function hideBanner() {
+    $('banner').classList.add('hidden');
+    bannerRetryFn = null;
+  }
+  $('bannerRetry').addEventListener('click', function () {
+    var fn = bannerRetryFn;
+    hideBanner();
+    if (fn) fn();
+  });
+  $('bannerClose').addEventListener('click', hideBanner);
+
+  /* ================= экраны ================= */
+
+  function showScreen(name) {
+    $('loginScreen').classList.toggle('hidden', name !== 'login');
+    $('workScreen').classList.toggle('hidden', name !== 'work');
+    $('doneScreen').classList.toggle('hidden', name !== 'done');
+    if (name === 'login') {
+      $('tokenInput').value = '';
+      setTimeout(function () { $('tokenInput').focus(); }, 0);
+    }
+    if (typeof updatePillVisibility === 'function') updatePillVisibility(name);
+  }
+
+  function loginError(msg) {
+    var el = $('loginError');
+    el.textContent = msg || '';
+    el.classList.toggle('hidden', !msg);
+  }
+  function loginNote(msg) {
+    var el = $('loginNote');
+    el.textContent = msg || '';
+    el.classList.toggle('hidden', !msg);
+  }
+
+  /* ================= вход / выход ================= */
+
+  function doLogin() {
+    var token = $('tokenInput').value.trim();
+    if (!token) { loginError('Введите токен.'); return; }
+    loginError('');
+    loginNote('');
+    $('loginBtn').disabled = true;
+    api('/api/login', { method: 'POST', json: { token: token } })
+      .then(function (r) {
+        if (r.role !== 'rater') {
+          loginError('Этот токен не предназначен для врача-аннотатора. Страница разметки доступна только врачам.');
+          return;
+        }
+        state.me = r;
+        startWork();
+      })
+      .catch(function (err) {
+        if (err.status === 401) loginError('Неверный токен. Проверьте и попробуйте ещё раз.');
+        else loginError(err.message || 'Не удалось войти.');
+      })
+      .then(function () { $('loginBtn').disabled = false; });
+  }
+
+  $('loginBtn').addEventListener('click', doLogin);
+  $('tokenInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
+  });
+
+  function doLogout() {
+    vid.pause();
+    api('/api/logout', { method: 'POST' }).catch(function () {})
+      .then(function () { window.location.replace('/'); });
+  }
+  $('logoutBtn').addEventListener('click', doLogout);
+  $('doneLogoutBtn').addEventListener('click', doLogout);
+
+  /* ================= очередь и прогресс ================= */
+
+  function startWork() {
+    $('raterName').textContent = state.me.name || state.me.rater_id || '';
+    delete vid.dataset.src;
+    showScreen('work');
+    attempt(function () {
+      return api('/api/cohorts').then(function (cohorts) {
+        var sel = $('cohortSel');
+        sel.innerHTML = '';
+        (cohorts || []).forEach(function (c) {
+          var o = document.createElement('option');
+          o.value = c.prefix; o.textContent = c.name;
+          sel.appendChild(o);
+        });
+        // выбор показываем только если когорт несколько
+        sel.classList.toggle('hidden', !cohorts || cohorts.length < 2);
+        state.cohort = (cohorts && cohorts.length) ? cohorts[0].prefix : '';
+        sel.value = state.cohort;
+        return loadQueue();
+      });
+    });
+  }
+
+  // переключение когорты — перезагрузка очереди (вернуть на рабочий экран,
+  // если были на «готово»: loadQueue сам покажет «готово», если новая пуста)
+  $('cohortSel').addEventListener('change', function () {
+    state.cohort = this.value;
+    showScreen('work');
+    attempt(loadQueue);
+  });
+
+  function loadQueue() {
+    var q = state.cohort ? ('?cohort=' + encodeURIComponent(state.cohort)) : '';
+    return api('/api/queue' + q).then(function (q) {
+      state.items = q.items || [];
+      state.total = q.total;
+      state.done = q.done;
+      updateProgress();
+      loadStats();
+      if (state.total === 0) { showDone(true); return; }
+      var first = -1;
+      for (var i = 0; i < state.items.length; i++) {
+        if (!state.items[i].done) { first = i; break; }
+      }
+      if (first === -1) showDone(false);
+      else loadClip(first);
+    });
+  }
+
+  function updateProgress() {
+    var pct = state.total ? Math.round(100 * state.done / state.total) : 0;
+    $('progressFill').style.width = pct + '%';
+    $('progressText').textContent = 'Размечено ' + state.done + ' из ' + state.total;
+  }
+
+  function showDone(empty) {
+    vid.pause();
+    $('doneText').textContent = empty
+      ? 'Клипов для разметки пока нет. Загляните позже.'
+      : 'Размечено клипов: ' + state.done + ' из ' + state.total + '.';
+    $('reviewBtn').classList.toggle('hidden', !!empty);
+    showScreen('done');
+  }
+
+  $('reviewBtn').addEventListener('click', function () {
+    showScreen('work');
+    loadClip(0);
+  });
+
+  /* ================= видео ================= */
+
+  function seekToStart(autoplay) {
+    var apply = function () {
+      try { vid.currentTime = seg.start; } catch (e) {}
+      if (autoplay) vid.play().catch(function () {});
+    };
+    if (vid.readyState >= 1) apply();
+    else vid.addEventListener('loadedmetadata', apply, { once: true });
+  }
+
+  vid.addEventListener('timeupdate', function () {
+    if (vid.currentTime > seg.end) {
+      vid.pause();
+      try { vid.currentTime = seg.start; } catch (e) {}
+    }
+  });
+
+  vid.addEventListener('click', function () {
+    if (vid.paused) vid.play().catch(function () {});
+    else vid.pause();
+  });
+
+  vid.addEventListener('error', function () {
+    delete vid.dataset.src;
+    if (state.idx < 0) return;
+    showBanner('Не удалось загрузить видео', function () { loadClip(state.idx); });
+  });
+
+  function replay(rate) {
+    vid.playbackRate = rate;
+    seekToStart(true);
+  }
+
+  $('replayBtn').addEventListener('click', function () { replay(1); });
+  $('slowBtn').addEventListener('click', function () { replay(0.5); });
+
+  /* ================= форма разметки ================= */
+
+  // кнопки-метки
+  (function buildFlags() {
+    var wrap = $('flags');
+    FLAGS.forEach(function (f, i) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'flagbtn';
+      b.dataset.key = f.key;
+      b.setAttribute('aria-pressed', 'false');
+      b.innerHTML = '<span class="key">' + (i + 1) + '</span><span>' + f.label +
+                    '</span><span class="mark">&#10003; есть</span>';
+      b.addEventListener('click', function () { toggleFlag(f.key); });
+      wrap.appendChild(b);
+    });
+  })();
+
+  function flagBtn(key) {
+    return document.querySelector('.flagbtn[data-key="' + key + '"]');
+  }
+  function toggleFlag(key) {
+    var b = flagBtn(key);
+    b.setAttribute('aria-pressed', String(b.classList.toggle('on')));
+    updateNormBadge();
+  }
+  function setFlag(key, val) {
+    var b = flagBtn(key);
+    b.classList.toggle('on', !!val);
+    b.setAttribute('aria-pressed', String(!!val));
+  }
+  function getFlag(key) {
+    return flagBtn(key).classList.contains('on') ? 1 : 0;
+  }
+  // Индикатор «норма»: горит, когда ни одна компенсация не отмечена.
+  function updateNormBadge() {
+    var clean = FLAGS.every(function (f) { return !getFlag(f.key); });
+    $('normBadge').classList.toggle('off', !clean);
+  }
+
+  // уверенность
+  var confValue = 0;
+  function setConf(v) {
+    confValue = v || 0;
+    var btns = document.querySelectorAll('.confbtn');
+    for (var i = 0; i < btns.length; i++) {
+      var on = Number(btns[i].dataset.conf) === confValue;
+      btns[i].classList.toggle('on', on);
+      btns[i].setAttribute('aria-pressed', String(on));
+    }
+  }
+  (function () {
+    var btns = document.querySelectorAll('.confbtn');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].addEventListener('click', function () {
+        setConf(Number(this.dataset.conf));
+        saveMsg('');
+      });
+    }
+  })();
+
+  function saveMsg(text) {
+    $('saveMsg').textContent = text || '';
+  }
+
+  function fillForm(a) {
+    FLAGS.forEach(function (f) { setFlag(f.key, a ? a[f.key] : 0); });
+    setConf(a ? a.confidence : 0);
+    $('comments').value = (a && a.comments) ? a.comments : '';
+    updateNormBadge();
+    saveMsg('');
+  }
+
+  /* ================= клипы ================= */
+
+  function loadClip(i) {
+    if (i < 0 || i >= state.items.length) return;
+    state.idx = i;
+    var item = state.items[i];
+
+    seg.start = Math.max(0, item.start_ms / 1000 - 0.3);
+    seg.end = item.end_ms / 1000 + 0.3;
+
+    vid.playbackRate = 1;
+    if (vid.dataset.src !== item.video_url) {
+      vid.dataset.src = item.video_url;
+      vid.src = item.video_url;
+    }
+    seekToStart(true);
+
+    $('clipTitle').textContent = 'Клип ' + (i + 1) + ' из ' + state.items.length;
+    $('clipDoneBadge').classList.toggle('hidden', !item.done);
+    $('prevBtn').disabled = (i === 0);
+    $('nextBtn').disabled = (i === state.items.length - 1);
+
+    fillForm(item.done ? item.annotation : null);
+  }
+
+  $('prevBtn').addEventListener('click', function () { if (state.saving) return; loadClip(state.idx - 1); });
+  $('nextBtn').addEventListener('click', function () { if (state.saving) return; loadClip(state.idx + 1); });
+
+  function findNextUndone(fromIdx) {
+    var n = state.items.length;
+    for (var d = 1; d <= n; d++) {
+      var j = (fromIdx + d) % n;
+      if (!state.items[j].done) return j;
+    }
+    return -1;
+  }
+
+  /* ================= сохранение ================= */
+
+  function save() {
+    if (state.saving || state.idx < 0) return;
+    if (!confValue) {
+      saveMsg('Выберите уверенность (1, 2 или 3), затем сохраните.');
+      return;
+    }
+
+    attempt(function () {
+      /* снимок формы собирается здесь, чтобы «Повторить» отправлял текущие значения */
+      var savedIdx = state.idx;
+      var item = state.items[savedIdx];
+      var body = { clip_uid: item.clip_uid, cohort: state.cohort };
+      FLAGS.forEach(function (f) { body[f.key] = getFlag(f.key); });
+      body.confidence = confValue;
+      body.comments = $('comments').value.trim();
+
+      state.saving = true;
+      $('saveBtn').disabled = true;
+      $('prevBtn').disabled = true;
+      $('nextBtn').disabled = true;
+      saveMsg('');
+
+      return api('/api/annotations', { method: 'POST', json: body }).then(function (r) {
+        item.done = true;
+        item.annotation = {
+          elbow: body.elbow, asymmetry: body.asymmetry, shoulder: body.shoulder,
+          trunk: body.trunk, head: body.head,
+          confidence: body.confidence, comments: body.comments
+        };
+        state.done = r.done;
+        state.total = r.total;
+        updateProgress();
+        if (r.scoreboard) renderScore(r.scoreboard);
+        if (r.events && r.events.length) enqueueAch(r.events);
+        if (state.idx !== savedIdx) return;
+        var next = findNextUndone(state.idx);
+        if (next === -1) showDone(false);
+        else loadClip(next);
+      }).then(unlockSave, function (err) { unlockSave(); throw err; });
+    });
+
+    function unlockSave() {
+      state.saving = false;
+      $('saveBtn').disabled = false;
+      $('prevBtn').disabled = (state.idx <= 0);
+      $('nextBtn').disabled = (state.idx >= state.items.length - 1);
+    }
+  }
+
+  $('saveBtn').addEventListener('click', save);
+
+  /* ================= геймификация: табло + ачивки ================= */
+
+  var game = { score: null, earned: [], queue: [], busy: false };
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function vg(g, male, female) { return g === 'f' ? female : male; }
+
+  /* каталог: код события -> {emoji, title, text, cls} (текст согласован по роду) */
+  var ACH = {
+    overtake: function (e, g) { return { emoji: '🏎️', title: 'Обгон!', cls: 'ach-dust',
+      text: 'Ты ' + vg(g, 'вырвался', 'вырвалась') + ' вперёд! Теперь ' + esc(e.rival_name) + ' глотает пыль.' }; },
+    comeback: function (e, g) { return { emoji: '📈', title: 'Камбэк года!', cls: 'ach-chart',
+      text: vg(g, 'Отставал', 'Отставала') + ' на ' + e.deficit + ', а теперь впереди! ' + esc(e.rival_name) + ' в шоке.' }; },
+    photo: function (e, g) { return { emoji: '😤', title: 'Фотофиниш', cls: 'ach-dust',
+      text: 'Разрыв всего ' + Math.abs(e.lead) + '! Вы с ' + esc(e.rival_name) + ' идёте ноздря в ноздрю.' }; },
+    blowout: function (e, g) { return { emoji: '🥶', title: 'Отрыв!', cls: 'ach-freeze',
+      text: 'Ты ' + vg(g, 'оторвался', 'оторвалась') + ' на ' + e.lead + '. ' + esc(e.rival_name) + ', ' + vg(e.rival_gender, 'ты там не уснул', 'ты там не уснула') + '?' }; },
+    streak: function (e, g) { return { emoji: '🔥', title: 'Серия ×' + e.value + '!', cls: 'ach-fire',
+      text: e.value + ' клипов подряд без передышки. Ты в огне!' }; },
+    speed: function (e, g) { return { emoji: '⚡', title: 'Пулемёт!', cls: 'ach-speed',
+      text: e.value + ' клипов за 10 минут. Неприлично быстро!' }; },
+    daily: function (e, g) { return { emoji: '🎯', title: 'Дневная норма', cls: 'ach-target',
+      text: e.value + ' клипов за день. ' + vg(g, 'Заслужил', 'Заслужила') + ' перерыв!' }; },
+    days: function (e, g) { return { emoji: '📅', title: e.value + ' дней подряд', cls: 'ach-cal',
+      text: 'Размечаешь ' + e.value + ' дней без пропусков. Дисциплина уровня бог!' }; },
+    owl: function (e, g) { return { emoji: '🦉', title: 'Ночная смена', cls: 'ach-night',
+      text: 'Глубокая ночь, а ты всё мечешь. Уважение!' }; },
+    lark: function (e, g) { return { emoji: '🐓', title: 'Жаворонок', cls: 'ach-dawn',
+      text: 'Ещё и кофе не выпил' + vg(g, '', 'а') + ', а уже за работой!' }; },
+    sweep: function (e, g) { return { emoji: '🧹', title: 'Чистильщик', cls: 'ach-sweep',
+      text: 'Целый блок размечен полностью! Закрыто блоков: ' + (e.value || 1) + '.' }; },
+    milestone: function (e, g) {
+      var M = {
+        25: { emoji: '💪', title: 'Четверть пути', text: '25% набора позади. ' + vg(g, 'Разогрелся', 'Разогрелась') + '!' },
+        50: { emoji: '🌍', title: 'Экватор!', text: 'Половина пройдена. Дальше — под горку.' },
+        75: { emoji: '🏁', title: 'Финишная прямая', text: '75%! Уже виден финиш.' },
+        100: { emoji: '👑', title: 'ГОТОВО!', text: 'Весь набор размечен. Ты — легенда!' }
+      };
+      var m = M[e.value] || M[25];
+      return { emoji: m.emoji, title: m.title, text: m.text, cls: e.value === 100 ? 'ach-crown' : 'ach-mile' };
+    }
+  };
+
+  function updatePillVisibility(screen) {
+    var onWork = screen ? screen === 'work' : !$('workScreen').classList.contains('hidden');
+    var ok = onWork && game.score && game.score.me;
+    $('scorePill').classList.toggle('hidden', !ok);
+  }
+
+  function renderScore(sb) {
+    if (!sb || !sb.me) return;
+    game.score = sb;
+    var me = sb.me, rv = sb.rival;
+    var meEl = $('scoreMe'), rvEl = $('scoreRival');
+    meEl.querySelector('.nm').textContent = me.name;
+    meEl.querySelector('.ct').textContent = me.count;
+    var solo = !rv;
+    $('scoreVs').classList.toggle('hidden', solo);
+    rvEl.classList.toggle('hidden', solo);
+    $('scoreMini').classList.toggle('hidden', solo);
+    if (!solo) {
+      rvEl.querySelector('.nm').textContent = rv.name;
+      rvEl.querySelector('.ct').textContent = rv.count;
+      var lead = sb.lead || 0;
+      meEl.classList.toggle('lead', lead > 0);
+      rvEl.classList.toggle('lead', lead < 0);
+      var sum = me.count + rv.count;
+      $('scoreMiniFill').style.width = (sum ? Math.round(100 * me.count / sum) : 50) + '%';
+    } else {
+      meEl.classList.remove('lead');
+    }
+    updatePillVisibility();
+  }
+
+  function loadStats() {
+    var qs = state.cohort ? ('?cohort=' + encodeURIComponent(state.cohort)) : '';
+    return api('/api/me/stats' + qs).then(function (s) {
+      if (!s) return;
+      game.earned = s.earned || [];
+      renderScore(s.scoreboard);
+      renderGallery();
+    }).catch(function () { /* табло не критично — тихо игнорируем */ });
+  }
+
+  /* очередь плашек: показываем по одной */
+  function enqueueAch(events) {
+    if (!events || !events.length) return;
+    for (var i = 0; i < events.length; i++) game.queue.push(events[i]);
+    pumpAch();
+  }
+  function pumpAch() {
+    if (game.busy) return;
+    var ev = game.queue.shift();
+    if (!ev) { loadStats(); return; }   // очередь пуста — обновим полку/счёт
+    game.busy = true;
+    popAchievement(ev, function () { game.busy = false; pumpAch(); });
+  }
+
+  function popAchievement(ev, done) {
+    var cat = ACH[ev.code];
+    if (!cat) { done(); return; }
+    var g = ev.self_gender || (game.score && game.score.me && game.score.me.gender) || 'm';
+    var info = cat(ev, g);
+    var ov = $('achOverlay');
+    var big = (ev.code === 'milestone' && ev.value === 100) || ev.code === 'comeback';
+    ov.className = 'ach-overlay ' + (info.cls || '');
+    ov.innerHTML =
+      '<div class="ach-flash"></div>' +
+      '<div class="ach-card' + (ev.code === 'photo' ? ' shake' : '') + '">' +
+        '<div class="ach-emoji">' + info.emoji + '</div>' +
+        '<div class="ach-kicker">Достижение</div>' +
+        '<div class="ach-title">' + esc(info.title) + '</div>' +
+        '<div class="ach-text">' + info.text + '</div>' +
+        '<div class="ach-dismiss">нажмите, чтобы продолжить</div>' +
+      '</div>';
+    void ov.offsetWidth;            // рефлоу, чтобы анимация входа проигралась
+    ov.classList.add('show');
+    if (big) confettiBurst();
+    var closed = false;
+    function close() {
+      if (closed) return; closed = true;
+      clearTimeout(tmr);
+      ov.classList.remove('show');
+      ov.classList.add('hide');
+      setTimeout(function () { ov.className = 'ach-overlay'; ov.innerHTML = ''; done(); }, 260);
+    }
+    var tmr = setTimeout(close, big ? 4200 : 3000);
+    ov.onclick = close;
+  }
+
+  function confettiBurst() {
+    var c = $('confetti');
+    c.classList.remove('hidden');
+    c.innerHTML = '';
+    var cols = ['#f97316', '#4f46e5', '#16a34a', '#eab308', '#ec4899', '#0ea5e9'];
+    for (var i = 0; i < 38; i++) {
+      var p = document.createElement('i');
+      p.style.left = (Math.random() * 100) + '%';
+      p.style.background = cols[i % cols.length];
+      p.style.animationDuration = (2.2 + Math.random() * 1.6) + 's';
+      p.style.animationDelay = (Math.random() * 0.5) + 's';
+      if (Math.random() < 0.5) p.style.borderRadius = '50%';
+      c.appendChild(p);
+    }
+    setTimeout(function () { c.classList.add('hidden'); c.innerHTML = ''; }, 4400);
+  }
+
+  /* раздел достижений: ВСЯ коллекция — заработанные подсвечены, остальные заперты */
+  var GALLERY = [
+    { cat: 'Прогресс', code: 'milestone', emoji: '🏁', title: 'Вехи набора', desc: 'Размечена доля всего набора',
+      tiers: ['25', '50', '75', '100'], tierLabel: function (t) { return t + '%'; },
+      tierEmoji: { '25': '💪', '50': '🌍', '75': '🏁', '100': '👑' } },
+    { cat: 'Прогресс', code: 'streak', emoji: '🔥', title: 'Серия', desc: 'Клипы подряд без долгих пауз',
+      tiers: ['10', '20', '30'], tierLabel: function (t) { return '×' + t; } },
+    { cat: 'Прогресс', code: 'speed', emoji: '⚡', title: 'Пулемёт', desc: 'Много клипов за 10 минут',
+      tiers: ['20', '40'], tierLabel: function (t) { return t + ' / 10 мин'; } },
+    { cat: 'Прогресс', code: 'daily', emoji: '🎯', title: 'Дневная норма', desc: '30+ клипов за один день' },
+    { cat: 'Прогресс', code: 'days', emoji: '📅', title: 'Дни подряд', desc: 'Несколько дней без пропусков',
+      tiers: ['3', '5', '7'], tierLabel: function (t) { return t + ' дн.'; } },
+    { cat: 'Прогресс', code: 'sweep', emoji: '🧹', title: 'Чистильщик', desc: 'Полностью закрыть запись одного человека' },
+    { cat: 'Прогресс', code: 'owl', emoji: '🦉', title: 'Ночная смена', desc: 'Размечать глубокой ночью' },
+    { cat: 'Прогресс', code: 'lark', emoji: '🐓', title: 'Жаворонок', desc: 'Размечать ранним утром' },
+    { cat: 'Гонка с напарником', code: 'overtake', emoji: '🏎️', title: 'Обгон', desc: 'Выйти вперёд соперника' },
+    { cat: 'Гонка с напарником', code: 'comeback', emoji: '📈', title: 'Камбэк', desc: 'Обогнать после отставания в 15+' },
+    { cat: 'Гонка с напарником', code: 'photo', emoji: '😤', title: 'Фотофиниш', desc: 'Идти ноздря в ноздрю (разрыв ≤2)' },
+    { cat: 'Гонка с напарником', code: 'blowout', emoji: '🥶', title: 'Отрыв', desc: 'Оторваться от соперника на 25+' }
+  ];
+
+  function renderGallery() {
+    var by = {};
+    (game.earned || []).forEach(function (b) { (by[b.code] = by[b.code] || []).push(String(b.tag)); });
+    var listEl = $('galleryList');
+    listEl.innerHTML = '';
+    var earnedCount = 0, lastCat = null;
+    GALLERY.forEach(function (g) {
+      var tags = by[g.code] || [];
+      var isEarned = tags.length > 0;
+      if (isEarned) earnedCount++;
+      if (g.cat !== lastCat) {
+        lastCat = g.cat;
+        var h = document.createElement('div');
+        h.className = 'gallery-cat';
+        h.textContent = g.cat;
+        listEl.appendChild(h);
+      }
+      var emoji = g.emoji, tierHtml = '', stat;
+      if (g.tiers) {
+        var reached = [];
+        var chips = g.tiers.map(function (t) {
+          var on = tags.indexOf(t) >= 0; if (on) reached.push(t);
+          return '<span class="' + (on ? 'on' : '') + '">' + esc(g.tierLabel(t)) + '</span>';
+        }).join('');
+        tierHtml = '<div class="gtiers">' + chips + '</div>';
+        if (g.tierEmoji && reached.length) emoji = g.tierEmoji[reached[reached.length - 1]] || emoji;
+        stat = isEarned ? (reached.length + '/' + g.tiers.length) : '🔒';
+      } else if (g.code === 'sweep') {
+        stat = isEarned ? ('×' + tags.length) : '🔒';
+      } else {
+        stat = isEarned ? '✓' : '🔒';
+      }
+      var el = document.createElement('div');
+      el.className = 'gitem ' + (isEarned ? 'earned' : 'locked');
+      el.innerHTML =
+        '<span class="gemoji">' + emoji + '</span>' +
+        '<div class="gbody"><div class="gtitle">' + esc(g.title) + '</div>' +
+          '<div class="gdesc">' + esc(g.desc) + '</div>' + tierHtml + '</div>' +
+        '<span class="gstat">' + stat + '</span>';
+      listEl.appendChild(el);
+    });
+    $('galleryCount').textContent = earnedCount + ' из ' + GALLERY.length;
+    $('galleryProgFill').style.width = Math.round(100 * earnedCount / GALLERY.length) + '%';
+  }
+  $('scorePill').addEventListener('click', function () { renderGallery(); $('badgeModal').classList.add('show'); });
+  $('badgeClose').addEventListener('click', function () { $('badgeModal').classList.remove('show'); });
+  $('badgeModal').addEventListener('click', function (e) { if (e.target === this) this.classList.remove('show'); });
+
+  /* ================= горячие клавиши ================= */
+
+  document.addEventListener('keydown', function (e) {
+    if ($('workScreen').classList.contains('hidden')) return;
+    var tag = (e.target.tagName || '').toUpperCase();
+    var typing = (tag === 'TEXTAREA' || tag === 'INPUT');
+
+    if (e.key === 'Enter') {
+      if (!typing || e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        save();
+      }
+      return; // обычный Enter в комментарии — перенос строки
+    }
+    if (typing) return;
+
+    if (e.code === 'Space') {
+      e.preventDefault();
+      replay(1);
+      return;
+    }
+    if (e.key >= '1' && e.key <= '5') {
+      e.preventDefault();
+      toggleFlag(FLAGS[Number(e.key) - 1].key);
+      saveMsg('');
+    }
+  });
+
+  /* ================= старт ================= */
+
+  function init() {
+    api('/api/me').then(function (me) {
+      if (me.role === 'rater') {
+        state.me = me;
+        startWork();
+      } else {
+        // единая точка входа: без сессии врача — на страницу логина
+        window.location.replace('/');
+      }
+    }).catch(function (err) {
+      if (err.network) {
+        // сервер недоступен: остаёмся на встроенном экране как запасном
+        showScreen('login');
+        showBanner(err.message, function () { hideBanner(); init(); });
+      } else {
+        window.location.replace('/');
+      }
+    });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

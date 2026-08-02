@@ -1,0 +1,3 @@
+clip_id,participant_id,condition,rep,elbow,asymmetry,shoulder,trunk,head,threshold_set,fps,keypoints_file
+clip_0001,P01,COR,1,0,0,0,0,0,v1.0-frozen-20260612,30,P01_COR_rep1.jsonl
+clip_0002,P01,TRK,1,0,0,0,1,0,v1.0-frozen-20260612,30,P01_TRK_rep1.jsonl
