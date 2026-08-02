@@ -14,8 +14,10 @@ keeps derived data in the page session, whereas this instrument deliberately upl
 and keypoints to a laboratory server, because blinded annotation requires clinicians to
 watch the movement.
 
-Most of the documentation and interface text is in Russian, the working language of the
-study. English descriptions of the protocol and of the annotation task are in `../docs/`.
+The interface text and the two documents used verbatim in the study (`protocol.md`,
+`annotator_instructions.md`) are in Russian, the working language of the study, and are
+kept as executed. The READMEs are in English; English descriptions of the protocol and of
+the annotation task are in `../docs/`.
 
 ## What is here
 

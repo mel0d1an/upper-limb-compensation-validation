@@ -1,142 +1,147 @@
-# Веб-приложение исследования: запись добровольцев и слепая разметка видео
+# Study web application: volunteer recording and blind video annotation
 
-Минималистичное Flask-приложение для проведения исследования: исследователь записывает
-блоки упражнений добровольцев (видео + ключевые точки), врачи-эксперты вслепую размечают
-повторения, исследователь выгружает CSV для анализа (`study/analysis.py`).
+A minimalist Flask application for running the study: the researcher records
+blocks of volunteer exercises (video + keypoints), expert clinicians annotate
+the repetitions blindly, and the researcher exports CSVs for analysis
+(`study/analysis.py`).
 
-## Содержание
+## Contents
 
-1. [Состав проекта](#1-состав-проекта)
-2. [Локальный запуск для проверки](#2-локальный-запуск-для-проверки)
-3. [Развёртывание на VPS (Ubuntu 22.04+)](#3-развёртывание-на-vps-ubuntu-2204)
-4. [Приватность и требования протокола](#4-приватность-и-требования-протокола)
-5. [Рабочий цикл исследования](#5-рабочий-цикл-исследования)
-6. [Таблица эндпоинтов](#6-таблица-эндпоинтов)
+1. [Project layout](#1-project-layout)
+2. [Local run for testing](#2-local-run-for-testing)
+3. [Deployment on a VPS (Ubuntu 22.04+)](#3-deployment-on-a-vps-ubuntu-2204)
+4. [Privacy and protocol requirements](#4-privacy-and-protocol-requirements)
+5. [Study workflow](#5-study-workflow)
+6. [Endpoint table](#6-endpoint-table)
 
 ---
 
-## 1. Состав проекта
+## 1. Project layout
 
 ```
 webapp/
-├── server.py              # весь бэкенд: Flask-приложение, SQLite, API
+├── server.py              # the whole backend: Flask app, SQLite, API
 ├── static/
-│   ├── login.html         # единая страница входа (маршрутизация по роли токена)
-│   ├── record.html        # кабинет исследователя: запись, загрузка видео, статистика
-│   └── annotate.html      # страница слепой разметки (врачи)
-├── Dockerfile             # контейнер: python:3.12-slim + waitress
-├── docker-compose.yml     # порт 127.0.0.1:8742, тома config.json (ro) и data/
-├── config.example.json    # шаблон конфигурации (лежит в git)
-├── config.json            # реальная конфигурация с токенами (НЕ в git)
+│   ├── login.html         # single login page (routing by token role)
+│   ├── record.html        # researcher workspace: recording, video upload, statistics
+│   └── annotate.html      # blind-annotation page (clinicians)
+├── Dockerfile             # container: python:3.12-slim + waitress
+├── docker-compose.yml     # port 127.0.0.1:8742, volumes for config.json (ro) and data/
+├── config.example.json    # configuration template (kept in git)
+├── config.json            # real configuration with tokens (NOT in git)
 ├── requirements.txt       # flask, waitress
-└── data/                  # создаётся сервером; НЕ в git
+└── data/                  # created by the server; NOT in git
     ├── study.db           # SQLite: blocks / reps / annotations
-    └── blocks/            # <uid>.webm|.mp4 и <uid>.jsonl
+    └── blocks/            # <uid>.webm|.mp4 and <uid>.jsonl
 ```
 
-Ролей две — и страницы две:
+Two roles — and two pages:
 
-- **static/record.html** — кабинет исследователя (vanilla JS, русский интерфейс).
-  Всё в одном окне: живая запись с камеры (MediaPipe, разметка повторений,
-  отправка на `POST /api/blocks`), **загрузка готового видеофайла**
-  (.mp4/.webm/.mov — файл прогоняется через тот же конвейер с теми же
-  замороженными порогами прямо в браузере, затем загружается как обычный
-  блок), и статистика: прогресс каждого врача с выгрузкой его
-  `annotations_<id>.csv`, кнопка `system_predictions.csv`, таблица
-  записанных блоков (автообновление).
-  Два **режима записи**: «Здоровый — 6 условий» (сценарные COR/ELB/ASY/SHR/TRK/HED,
-  одно условие на участника — повтор запрещён сервером 409, прогресс-бар условий
-  и авто-переход к следующему id после 6/6) и «Пациент — естественно» (без
-  сценария, условие пишется как `NAT1`, `NAT2`, … по номеру пробы, чтобы
-  `clip_id` оставались уникальными; ограничения 6 нет). Уникальность
-  «участник+условие» среди зачётных и не исключённых блоков гарантирует сервер.
-- **static/annotate.html** — страница врача: очередь клипов в индивидуальном
-  перемешанном порядке, без какой-либо информации об участнике, условии или
-  предсказаниях системы (слепая разметка).
+- **static/record.html** — the researcher workspace (vanilla JS,
+  Russian-language interface). Everything in one window: live recording from
+  the camera (MediaPipe, repetition segmentation, submission to
+  `POST /api/blocks`), **upload of a pre-recorded video file**
+  (.mp4/.webm/.mov — the file is run through the same pipeline with the same
+  frozen thresholds right in the browser, then uploaded as a regular block),
+  and statistics: each clinician's progress with export of their
+  `annotations_<id>.csv`, a `system_predictions.csv` button, a table of
+  recorded blocks (auto-refreshing).
+  Two **recording modes**: "Healthy — 6 conditions" (scripted
+  COR/ELB/ASY/SHR/TRK/HED, one condition per participant — a repeat is
+  rejected by the server with 409, a condition progress bar and auto-advance
+  to the next id after 6/6) and "Patient — natural" (no script, the condition
+  is written as `NAT1`, `NAT2`, … by trial number so that `clip_id` values
+  stay unique; no limit of 6). Uniqueness of "participant + condition" among
+  counted, non-excluded blocks is guaranteed by the server.
+- **static/annotate.html** — the clinician page: a queue of clips in an
+  individually shuffled order, with no information about the participant,
+  condition or system predictions (blind annotation).
 
-`/dashboard` упразднён и редиректит на `/record` (кабинет объединён со
-страницей записи).
-- **config.json** — токены доступа и параметры. Хранится только на сервере,
-  права `600`. В репозитории лежит лишь `config.example.json`.
-- **data/** — все данные исследования (видео = персональные данные, см. раздел 4).
+`/dashboard` has been retired and redirects to `/record` (the workspace is
+merged into the recording page).
+- **config.json** — access tokens and parameters. Stored only on the server,
+  permissions `600`. Only `config.example.json` is in the repository.
+- **data/** — all study data (video = personal data, see section 4).
 
-## 2. Локальный запуск для проверки
+## 2. Local run for testing
 
 ```bash
 cd study/webapp
 
-# 1. Виртуальное окружение и зависимости
+# 1. Virtual environment and dependencies
 python3 -m venv venv
 . venv/bin/activate
 pip install -r requirements.txt
 
-# 2. Конфигурация
+# 2. Configuration
 cp config.example.json config.json
 
-# 3. Сгенерировать длинные случайные токены (по одному на каждую роль)
+# 3. Generate long random tokens (one per role)
 python3 -c "import secrets; print(secrets.token_urlsafe(24))"   # researcher_token
-python3 -c "import secrets; print(secrets.token_urlsafe(24))"   # токен врача R1
-python3 -c "import secrets; print(secrets.token_urlsafe(24))"   # токен врача R2
-# вписать их в config.json вместо CHANGE-ME-...
+python3 -c "import secrets; print(secrets.token_urlsafe(24))"   # clinician R1 token
+python3 -c "import secrets; print(secrets.token_urlsafe(24))"   # clinician R2 token
+# put them into config.json in place of CHANGE-ME-...
 
-# 4. Запуск (отладочный режим, слушает только 127.0.0.1:8742)
+# 4. Run (debug mode, listens on 127.0.0.1:8742 only)
 python3 server.py
 ```
 
-Открыть в браузере <http://127.0.0.1:8742/> — это **единая страница входа**:
-введите токен, и система сама направит вас по роли (токен исследователя →
-кабинет `/record`, токен врача → разметка `/annotate`). Прямое открытие
-`/record` или `/annotate` без сессии возвращает на страницу входа.
-Запишите тестовый блок, затем в приватном окне войдите токеном врача — клип
-должен появиться в очереди разметки.
+Open <http://127.0.0.1:8742/> in the browser — this is the **single login
+page**: enter a token and the system routes you by role (researcher token →
+`/record` workspace, clinician token → `/annotate` annotation). Opening
+`/record` or `/annotate` directly without a session returns you to the login
+page. Record a test block, then log in with a clinician token in a private
+window — the clip should appear in the annotation queue.
 
-> Для записи видео браузеру нужен доступ к камере: на `localhost` он разрешён,
-> на удалённом сервере камера работает **только по HTTPS** (требование браузеров
-> к `getUserMedia`). Ещё одна причина, почему HTTPS обязателен (раздел 3.4).
+> To record video the browser needs camera access: it is allowed on
+> `localhost`, but on a remote server the camera works **only over HTTPS**
+> (a browser requirement for `getUserMedia`). One more reason HTTPS is
+> mandatory (section 3.4).
 
-## 3. Развёртывание на VPS (Ubuntu 22.04+)
+## 3. Deployment on a VPS (Ubuntu 22.04+)
 
-Два равнозначных пути: **Docker (рекомендуется — раздел 3.0)** или
-вручную через systemd (разделы 3.1–3.2). В обоих случаях наружу смотрит
-только nginx с HTTPS (разделы 3.3–3.4).
+Two equivalent paths: **Docker (recommended — section 3.0)** or manually via
+systemd (sections 3.1–3.2). In both cases only nginx with HTTPS faces the
+outside (sections 3.3–3.4).
 
-### 3.0. Вариант A: Docker (рекомендуется)
+### 3.0. Option A: Docker (recommended)
 
-На VPS достаточно Docker + плагина compose (`apt install docker.io
-docker-compose-v2` или официальный скрипт docker.com).
+On the VPS you only need Docker + the compose plugin (`apt install docker.io
+docker-compose-v2` or the official docker.com script).
 
 ```bash
-# код приложения на сервер (папка study/webapp целиком)
+# application code to the server (the whole study/webapp folder)
 scp -r study/webapp user@vps:~/study-webapp && ssh user@vps
 cd ~/study-webapp
 
-# конфигурация с боевыми токенами
+# configuration with production tokens
 cp config.example.json config.json
-python3 -c "import secrets; print(secrets.token_urlsafe(24))"  # x3, вписать
+python3 -c "import secrets; print(secrets.token_urlsafe(24))"  # x3, fill in
 nano config.json && chmod 600 config.json
 
-# каталог данных: в контейнере пишет uid 1000
+# data directory: uid 1000 writes inside the container
 mkdir -p data && sudo chown 1000:1000 data
 
 docker compose up -d --build
-docker compose logs -f   # убедиться, что сервер поднялся
+docker compose logs -f   # make sure the server came up
 ```
 
-Контейнер слушает только `127.0.0.1:8742` хоста (см. `docker-compose.yml`) —
-публичный доступ строго через nginx с HTTPS (разделы 3.3–3.4 без изменений).
-`config.json` монтируется только на чтение, данные живут в `./data` на хосте
-(бэкап и удаление по завершении — раздел 4). Обновление приложения:
-`git pull`/`scp` новых файлов → `docker compose up -d --build`.
+The container listens only on the host's `127.0.0.1:8742` (see
+`docker-compose.yml`) — public access strictly through nginx with HTTPS
+(sections 3.3–3.4, unchanged). `config.json` is mounted read-only, the data
+live in `./data` on the host (backup and deletion on completion — section 4).
+Updating the application: `git pull`/`scp` the new files →
+`docker compose up -d --build`.
 
-### 3.1. Вариант B вручную: пользователь без root и код приложения
+### 3.1. Option B, manual: non-root user and application code
 
-Приложение работает от отдельного непривилегированного пользователя:
+The application runs as a separate unprivileged user:
 
 ```bash
 sudo adduser --system --group --home /opt/studyapp studyapp
 
 sudo -u studyapp mkdir -p /opt/studyapp/webapp
-# скопировать server.py, static/, requirements.txt, config.example.json:
+# copy server.py, static/, requirements.txt, config.example.json:
 sudo rsync -a --chown=studyapp:studyapp study/webapp/ /opt/studyapp/webapp/ \
   --exclude venv --exclude data --exclude config.json
 
@@ -145,18 +150,18 @@ sudo -u studyapp python3 -m venv venv
 sudo -u studyapp venv/bin/pip install -r requirements.txt
 
 sudo -u studyapp cp config.example.json config.json
-# вписать в config.json сгенерированные токены (см. раздел 2)
+# put the generated tokens into config.json (see section 2)
 sudo chmod 600 config.json
 ```
 
-Проверка вручную (сервер слушает только localhost — наружу его отдаёт nginx):
+Manual check (the server listens on localhost only — nginx exposes it):
 
 ```bash
 sudo -u studyapp /opt/studyapp/webapp/venv/bin/waitress-serve \
   --listen=127.0.0.1:8742 server:app
 ```
 
-### 3.2. systemd-юнит
+### 3.2. systemd unit
 
 `/etc/systemd/system/studyapp.service`:
 
@@ -174,7 +179,7 @@ ExecStart=/opt/studyapp/webapp/venv/bin/waitress-serve --listen=127.0.0.1:8742 s
 Restart=on-failure
 RestartSec=3
 
-# Минимизация привилегий
+# Privilege minimization
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
@@ -189,7 +194,7 @@ WantedBy=multi-user.target
 sudo systemctl daemon-reload
 sudo systemctl enable --now studyapp
 sudo systemctl status studyapp
-journalctl -u studyapp -f        # логи
+journalctl -u studyapp -f        # logs
 ```
 
 ### 3.3. nginx reverse proxy
@@ -198,15 +203,16 @@ journalctl -u studyapp -f        # логи
 sudo apt install nginx
 ```
 
-`/etc/nginx/sites-available/studyapp` (замените `study.example.org` на ваш домен):
+`/etc/nginx/sites-available/studyapp` (replace `study.example.org` with your domain):
 
 ```nginx
 server {
     listen 80;
     server_name study.example.org;
 
-    # чуть больше max_upload_mb (300 МБ в config.json), чтобы информативный
-    # JSON о превышении отдавало приложение, а не nginx своей страницей 413
+    # slightly above max_upload_mb (300 MB in config.json), so that the
+    # informative JSON about an oversized upload comes from the application,
+    # not from nginx's own 413 page
     client_max_body_size 310m;
 
     location / {
@@ -216,7 +222,7 @@ server {
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # большие загрузки и потоковая отдача видео
+        # large uploads and streaming video delivery
         proxy_request_buffering off;
         proxy_read_timeout 300s;
         proxy_send_timeout 300s;
@@ -229,98 +235,104 @@ sudo ln -s /etc/nginx/sites-available/studyapp /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-### 3.4. HTTPS через certbot — ОБЯЗАТЕЛЬНО
+### 3.4. HTTPS via certbot — MANDATORY
 
-По каналу передаются токены доступа и видео добровольцев (персональные данные),
-поэтому работа по голому HTTP недопустима. Кроме того, без HTTPS браузер не даст
-доступ к камере на странице записи.
+Access tokens and volunteer videos (personal data) travel over the channel, so
+running over plain HTTP is unacceptable. Besides, without HTTPS the browser
+will not grant camera access on the recording page.
 
 ```bash
 sudo apt install certbot python3-certbot-nginx
 sudo certbot --nginx -d study.example.org --redirect
 ```
 
-`--redirect` настраивает автоматическую переадресацию HTTP → HTTPS; certbot сам
-обновляет сертификат по таймеру. Проверить продление: `sudo certbot renew --dry-run`.
+`--redirect` sets up automatic HTTP → HTTPS redirection; certbot renews the
+certificate on a timer by itself. Check renewal: `sudo certbot renew --dry-run`.
 
-После выпуска сертификата **обязательно** добавьте в HTTPS-`server`-блок заголовок HSTS:
+After the certificate is issued, **be sure** to add the HSTS header to the
+HTTPS `server` block:
 
 ```nginx
 add_header Strict-Transport-Security "max-age=31536000" always;
 ```
 
-## 4. Приватность и требования протокола
+## 4. Privacy and protocol requirements
 
-Видео добровольцев — **персональные данные** (биометрически идентифицирующие
-изображения людей). Протокол исследования требует деидентифицированного хранения,
-доступа только у исследовательской группы и слепой разметки. Минимальные меры:
+Volunteer videos are **personal data** (biometrically identifying images of
+people). The study protocol requires de-identified storage, access restricted
+to the research group, and blind annotation. Minimal measures:
 
-- **HTTPS обязателен.** Никакого доступа к приложению по HTTP; редирект на HTTPS
-  включён (раздел 3.4).
-- **Токены — длинные, случайные, индивидуальные.** Каждому врачу свой токен
-  (`secrets.token_urlsafe(24)` и длиннее), плюс отдельный токен исследователя.
-  Токены передавать по защищённым каналам, не по открытой почте. При подозрении
-  на компрометацию — сменить в `config.json` и перезапустить сервис.
-- **Cookie сессии — HttpOnly, SameSite=Lax** (реализовано в `server.py`):
-  токен недоступен из JavaScript.
-- **Деидентификация в интерфейсе разметки.** Врач видит только случайный
-  `clip_uid`; `participant_id`, условие, номер повторения и предсказания системы
-  врачам не передаются ни в каком эндпоинте. Компромисс: видео отдаётся целым
-  блоком через общий `GET /api/video/<block_uid>`, поэтому врач технически может
-  понять, что несколько клипов принадлежат одному блоку (а значит — одному
-  условию). Это осознанный компромисс ради отдачи видео целым блоком без
-  перекодирования; возможная доработка — нарезать блок на отдельные клипы при
-  загрузке (ffmpeg) и отдавать каждый клип по собственному uid.
-- **Шифрование диска VPS** — желательно (LUKS / шифрование на стороне провайдера),
-  чтобы данные не были читаемы при изъятии или утилизации носителя.
-- **Доступ к серверу — только по SSH-ключам**: `PasswordAuthentication no`,
-  `PermitRootLogin no` в `/etc/ssh/sshd_config`; файрвол (ufw) открывает только
-  22, 80, 443.
-- **Бэкап `data/` — только шифрованным архивом**, например:
+- **HTTPS is mandatory.** No access to the application over HTTP; the redirect
+  to HTTPS is enabled (section 3.4).
+- **Tokens — long, random, individual.** Each clinician gets their own token
+  (`secrets.token_urlsafe(24)` or longer), plus a separate researcher token.
+  Hand tokens over via secure channels, not open e-mail. On suspected
+  compromise — change them in `config.json` and restart the service.
+- **Session cookie — HttpOnly, SameSite=Lax** (implemented in `server.py`):
+  the token is not reachable from JavaScript.
+- **De-identification in the annotation interface.** A clinician sees only a
+  random `clip_uid`; `participant_id`, condition, repetition number and system
+  predictions are not exposed to clinicians in any endpoint. Trade-off: the
+  video is served as a whole block via the shared `GET /api/video/<block_uid>`,
+  so a clinician can technically tell that several clips belong to one block
+  (and therefore to one condition). This is a deliberate trade-off for serving
+  the video as a whole block without re-encoding; a possible improvement is to
+  cut the block into individual clips at upload time (ffmpeg) and serve each
+  clip under its own uid.
+- **VPS disk encryption** — desirable (LUKS / provider-side encryption), so
+  the data are unreadable if the medium is seized or decommissioned.
+- **Server access — SSH keys only**: `PasswordAuthentication no`,
+  `PermitRootLogin no` in `/etc/ssh/sshd_config`; the firewall (ufw) opens
+  only 22, 80, 443.
+- **Backups of `data/` — encrypted archives only**, for example:
 
   ```bash
   tar -C /opt/studyapp/webapp -cz data | \
     gpg --symmetric --cipher-algo AES256 -o study-data-$(date +%F).tar.gz.gpg
   ```
 
-  Хранить копии только на носителях исследовательской группы.
-- **Отбраковка и удаление — с аудитом.** Бракованный блок (сбой камеры,
-  кадрирование, не тот код участника, посторонний в кадре) исследователь
-  *исключает* (`/api/blocks/<uid>/void`) с обязательной причиной: блок исчезает
-  из очереди разметки и экспортов, но файл сохраняется, а действие пишется в
-  журнал аудита (таблица `audit_log`) и обратимо (`/restore`). Критерий
-  исключения — технический/организационный, **не** «правильным» ли вышел
-  результат системы (иначе это подгонка точности). Отзыв согласия участником
-  выполняется через `/api/participants/<pid>/erase` — безвозвратное удаление
-  видео, ключевых точек, разметки и блоков; в журнал аудита пишется только факт
-  и счётчики (без содержимого). Это и есть техническая реализация обещанного в
-  форме согласия права на удаление (152-ФЗ).
-- **Данные на VPS — только на период разметки.** По завершении разметки и выгрузки
-  CSV каталог `data/` удаляется с сервера безвозвратно (`shred`/`rm` + при
-  шифрованном диске достаточно уничтожения ключа), сервис останавливается.
-  VPS — временная площадка, не архив исследования.
-- **Юрисдикция хостинга** согласуется с требованиями этического комитета.
-  Для РФ действует 152-ФЗ: персональные данные граждан РФ должны храниться
-  на серверах на территории РФ — выбирайте российского провайдера.
-- **Согласие участников** должно явно покрывать обработку видеозаписей на
-  арендованном сервере (с указанием мер защиты и срока хранения).
+  Keep copies only on media held by the research group.
+- **Rejection and deletion — with an audit trail.** A defective block (camera
+  failure, framing, wrong participant code, a bystander in the frame) is
+  *excluded* by the researcher (`/api/blocks/<uid>/void`) with a mandatory
+  reason: the block disappears from the annotation queue and the exports, but
+  the file is kept, and the action is written to the audit log (the
+  `audit_log` table) and is reversible (`/restore`). The exclusion criterion
+  is technical/organizational, **not** whether the system's result came out
+  "right" (that would be accuracy tuning). A participant's withdrawal of
+  consent is executed via `/api/participants/<pid>/erase` — irreversible
+  deletion of the video, keypoints, annotations and blocks; only the fact and
+  the counts are written to the audit log (no content). This is the technical
+  implementation of the right to erasure promised in the consent form
+  (Russian Federal Law 152-FZ).
+- **Data stay on the VPS only for the annotation period.** Once annotation and
+  CSV export are finished, the `data/` directory is irreversibly deleted from
+  the server (`shred`/`rm`; with an encrypted disk, destroying the key is
+  enough) and the service is stopped. The VPS is a temporary venue, not the
+  study archive.
+- **Hosting jurisdiction** is agreed with the ethics committee's requirements.
+  For Russia, Federal Law 152-FZ applies: personal data of Russian citizens
+  must be stored on servers located in Russia — choose a Russian provider.
+- **Participant consent** must explicitly cover processing of the video
+  recordings on a rented server (stating the protection measures and the
+  storage period).
 
-## 5. Рабочий цикл исследования
+## 5. Study workflow
 
-1. **Запись блоков.** Исследователь открывает `https://<домен>/record`, входит по
-   `researcher_token`, записывает блоки (видео + ключевые точки + границы
-   повторений с флагами системы). Страница сама отправляет блок на
-   `POST /api/blocks`.
+1. **Recording blocks.** The researcher opens `https://<domain>/record`, logs
+   in with the `researcher_token`, and records blocks (video + keypoints +
+   repetition boundaries with system flags). The page itself submits the block
+   to `POST /api/blocks`.
 
-   Уже записанные файлы можно загрузить вручную через curl:
+   Already-recorded files can be uploaded manually with curl:
 
    ```bash
-   # 1) логин, сохранить cookie сессии
+   # 1) log in, save the session cookie
    curl -s -c cookies.txt -H 'Content-Type: application/json' \
      -d '{"token":"<researcher_token>"}' \
      https://study.example.org/api/login
 
-   # 2) загрузка блока
+   # 2) upload a block
    curl -s -b cookies.txt -X POST https://study.example.org/api/blocks \
      -F participant_id=P07 \
      -F condition=ELB \
@@ -333,23 +345,25 @@ add_header Strict-Transport-Security "max-age=31536000" always;
    # -> 201 {"block_uid": "...", "reps": 1}
    ```
 
-   Загрузка идемпотентна: повторная отправка блока с тем же `client_uid` не
-   создаёт дубликат — полезно знать при ручной загрузке через curl (например,
-   при повторе запроса после обрыва соединения).
+   Uploads are idempotent: re-sending a block with the same `client_uid` does
+   not create a duplicate — useful to know when uploading manually with curl
+   (for example, when retrying a request after a dropped connection).
 
-   Блоки с `trial=1` — тренировочные: в очередь разметки и в экспорты не попадают.
+   Blocks with `trial=1` are practice runs: they enter neither the annotation
+   queue nor the exports.
 
-2. **Мониторинг.** Внизу той же страницы `/record`: прогресс
-   каждого врача, список блоков, выгрузка CSV в один клик. То же доступно по
-   API: `GET /api/progress`, `GET /api/blocks`.
+2. **Monitoring.** At the bottom of the same `/record` page: each clinician's
+   progress, the block list, one-click CSV export. The same is available via
+   the API: `GET /api/progress`, `GET /api/blocks`.
 
-3. **Разметка.** Врачи открывают `https://<домен>/annotate`, входят своим токеном
-   и размечают клипы: 5 бинарных меток (elbow/asymmetry/shoulder/trunk/head),
-   уверенность 1–3, комментарий. Порядок клипов у каждого врача свой
-   (детерминированное перемешивание), повторный вход продолжает с места остановки,
-   разметку можно исправлять (upsert).
+3. **Annotation.** Clinicians open `https://<domain>/annotate`, log in with
+   their tokens and annotate the clips: 5 binary labels
+   (elbow/asymmetry/shoulder/trunk/head), confidence 1–3, a comment. Each
+   clinician gets their own clip order (deterministic shuffling), a repeated
+   login resumes where they stopped, and annotations can be corrected
+   (upsert).
 
-4. **Выгрузка.** Когда оба врача закончили:
+4. **Export.** When both clinicians are done:
 
    ```bash
    curl -b cookies.txt -o annotations_R1.csv https://study.example.org/api/export/annotations/R1
@@ -357,34 +371,35 @@ add_header Strict-Transport-Security "max-age=31536000" always;
    curl -b cookies.txt -o system_predictions.csv https://study.example.org/api/export/predictions
    ```
 
-   В экспортах `clip_id` уже расшифрован в реальный вид
-   `{participant_id}_{condition}_rep{rep_num}` (например, `P07_ELB_rep1`).
+   In the exports, `clip_id` is already decoded to its real form
+   `{participant_id}_{condition}_rep{rep_num}` (for example, `P07_ELB_rep1`).
 
-5. **Анализ.** Выгруженные CSV подаются в `study/analysis.py`:
-   межэкспертная согласованность (kappa) → консенсусные метки → оценка
-   предсказаний системы (evaluate).
+5. **Analysis.** The exported CSVs go into `study/analysis.py`: inter-rater
+   agreement (kappa) → consensus labels → evaluation of the system
+   predictions (evaluate).
 
-6. **Завершение.** Данные удаляются с VPS (раздел 4), сервис останавливается.
+6. **Completion.** The data are deleted from the VPS (section 4) and the
+   service is stopped.
 
-## 6. Таблица эндпоинтов
+## 6. Endpoint table
 
-| Метод | Путь | Роль | Назначение |
+| Method | Path | Role | Purpose |
 |---|---|---|---|
-| GET | `/` | — | единый вход: токен → редирект по роли |
-| GET | `/dashboard` | — | 302 → `/record` (кабинет объединён) |
-| GET | `/record` | — | кабинет исследователя (без сессии → `/`) |
-| GET | `/annotate` | — | страница разметки (без сессии → `/`) |
-| POST | `/api/login` | — | вход по токену; ставит HttpOnly-cookie `session` |
-| POST | `/api/logout` | любая | выход, очистка cookie |
-| GET | `/api/me` | любая | текущая роль/имя или 401 |
-| POST | `/api/blocks` | researcher | загрузка блока (multipart: поля + webm + jsonl) |
-| GET | `/api/blocks` | researcher | список блоков (с пометкой исключённых и причиной) |
-| POST | `/api/blocks/<uid>/void` | researcher | исключить блок (обязательна `reason`); файл сохраняется, блок уходит из очереди и экспортов |
-| POST | `/api/blocks/<uid>/restore` | researcher | отменить исключение блока |
-| POST | `/api/participants/<pid>/erase` | researcher | безвозвратно удалить все данные участника (`reason` + `confirm`==pid) |
-| GET | `/api/queue` | rater | персональная перемешанная очередь клипов (без деанонимирующих полей) |
-| GET | `/api/video/<block_uid>` | любая | webm-видео блока (с поддержкой Range) |
-| POST | `/api/annotations` | rater | сохранить/обновить разметку клипа |
-| GET | `/api/progress` | researcher | прогресс врачей, число блоков/повторений |
-| GET | `/api/export/annotations/<rater_id>` | researcher | CSV разметки врача |
-| GET | `/api/export/predictions` | researcher | CSV предсказаний системы |
+| GET | `/` | — | single login: token → redirect by role |
+| GET | `/dashboard` | — | 302 → `/record` (workspace merged) |
+| GET | `/record` | — | researcher workspace (no session → `/`) |
+| GET | `/annotate` | — | annotation page (no session → `/`) |
+| POST | `/api/login` | — | log in by token; sets the HttpOnly `session` cookie |
+| POST | `/api/logout` | any | log out, clear the cookie |
+| GET | `/api/me` | any | current role/name or 401 |
+| POST | `/api/blocks` | researcher | upload a block (multipart: fields + webm + jsonl) |
+| GET | `/api/blocks` | researcher | list of blocks (with excluded ones marked, incl. the reason) |
+| POST | `/api/blocks/<uid>/void` | researcher | exclude a block (`reason` mandatory); the file is kept, the block leaves the queue and the exports |
+| POST | `/api/blocks/<uid>/restore` | researcher | undo a block's exclusion |
+| POST | `/api/participants/<pid>/erase` | researcher | irreversibly delete all of a participant's data (`reason` + `confirm`==pid) |
+| GET | `/api/queue` | rater | personal shuffled clip queue (no de-anonymizing fields) |
+| GET | `/api/video/<block_uid>` | any | the block's webm video (with Range support) |
+| POST | `/api/annotations` | rater | save/update a clip's annotation |
+| GET | `/api/progress` | researcher | clinicians' progress, block/repetition counts |
+| GET | `/api/export/annotations/<rater_id>` | researcher | a clinician's annotation CSV |
+| GET | `/api/export/predictions` | researcher | system-prediction CSV |

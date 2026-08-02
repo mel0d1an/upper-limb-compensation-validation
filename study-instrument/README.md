@@ -1,67 +1,69 @@
 # compensation-study-tools
 
-Инструменты валидационного исследования: детекция компенсаторных движений
-верхней конечности против слепой разметки клиницистов. Companion-репозиторий
-к статье для MDPI Sensors (рукопись — в отдельном приватном репозитории
-`sensors-compensation-paper`; там эксперимент закрывает подсекцию
-«Compensation Detection vs. Clinician Annotation» и даёт данные для
-Threshold Sensitivity Analysis).
+Tools of the validation study: detection of upper-limb compensatory movements
+against blind clinician annotation. Companion repository to the MDPI Sensors
+paper (the manuscript lives in a separate private repository
+`sensors-compensation-paper`; there the experiment closes the
+"Compensation Detection vs. Clinician Annotation" subsection and provides the
+data for the Threshold Sensitivity Analysis).
 
-## Состав пакета
+## Package contents
 
-| Файл | Назначение |
+| File | Purpose |
 |---|---|
-| `protocol.md` | Протокол эксперимента: дизайн, участники, процедура записи, данные |
-| `annotator_instructions.md` | Инструкция для клиницистов-аннотаторов (критерии 5 компенсаций) |
-| `consent_form.md` | Шаблон информированного согласия (адаптировать под требования ЭК) |
-| `templates/system_predictions.csv` | Образец формата выгрузки предсказаний системы |
-| `analysis.py` | Скрипт анализа: каппа Коэна, консенсус, P/R/F1 + бутстреп-ДИ, чувствительность |
-| `webapp/` | Приложение исследования: запись с загрузкой на сервер + кабинет слепой разметки для врачей + экспорт CSV; `webapp/recompute.py` — канонический пересчёт предсказаний из keypoints (см. `webapp/README.md`) |
+| `protocol.md` | Study protocol: design, participants, recording procedure, data |
+| `annotator_instructions.md` | Instructions for the annotating clinicians (criteria for the 5 compensations) |
+| `consent_form.md` | Informed-consent template (adapt to the ethics committee's requirements) |
+| `templates/system_predictions.csv` | Sample format of the system-prediction export |
+| `analysis.py` | Analysis script: Cohen's kappa, consensus, P/R/F1 + bootstrap CIs, sensitivity |
+| `webapp/` | Study application: recording with upload to the server + blind-annotation workspace for the clinicians + CSV export; `webapp/recompute.py` — canonical recomputation of predictions from keypoints (see `webapp/README.md`) |
 
-## Порядок действий
+## Workflow
 
-1. **Этика.** Проверить, покрывает ли действующее одобрение ЭК запись видео
-   добровольцев; при необходимости подать поправку. Подготовить согласия
+1. **Ethics.** Check whether the current ethics approval covers video recording
+   of volunteers; file an amendment if needed. Prepare the consent forms
    (`consent_form.md`).
-2. **Инженерная подготовка.** Запись и разметка идут через `webapp/`
-   (Flask + MediaPipe Pose в браузере, обработка на устройстве; развёртывание —
-   `webapp/README.md`). На блок сохраняются видео `.webm`, ключевые точки
-   `.jsonl` и предсказания системы (с границами повторений). Пороги детекции
-   зафиксированы в константе `THR` (`webapp/static/record.html`) и не меняются
-   в ходе сбора; калибруются заранее на пилоте/референсе (см. ниже о
-   `recompute.py`) и замораживаются до старта валидации.
-3. **Запись.** 12–20 участников по протоколу (`protocol.md`). Один участник —
-   ~20–25 минут.
-4. **Разметка.** Два клинициста независимо, вслепую к выводу системы, по
-   `annotator_instructions.md`: заходят в веб-кабинет (`webapp/`) по
-   индивидуальным токенам, размечают клип за клипом, исследователь выгружает
-   готовые `annotations_R1.csv`/`annotations_R2.csv`.
-5. **Анализ.**
+2. **Engineering setup.** Recording and annotation run through `webapp/`
+   (Flask + MediaPipe Pose in the browser, on-device processing; deployment —
+   `webapp/README.md`). Per block, the app stores the `.webm` video, the
+   `.jsonl` keypoints and the system predictions (with repetition boundaries).
+   Detection thresholds are fixed in the `THR` constant
+   (`webapp/static/record.html`) and do not change during data collection;
+   they are calibrated beforehand on a pilot/reference set (see below on
+   `recompute.py`) and frozen before the validation starts.
+3. **Recording.** 12–20 participants following the protocol (`protocol.md`).
+   One participant takes ~20–25 minutes.
+4. **Annotation.** Two clinicians independently, blind to the system output,
+   following `annotator_instructions.md`: they log into the web workspace
+   (`webapp/`) with individual tokens and annotate clip by clip; the researcher
+   exports the finished `annotations_R1.csv`/`annotations_R2.csv`.
+5. **Analysis.**
    ```bash
-   # предсказания системы — каноническим пересчётом из keypoints (устойчивый
-   # «ноль» по покою, не зависит от качества живой калибровки):
+   # system predictions — canonical recomputation from keypoints (a stable
+   # resting "zero", independent of the quality of the live calibration):
    python3 webapp/recompute.py --data webapp/data --out system_predictions.csv
 
    python3 analysis.py kappa rater1.csv rater2.csv
    python3 analysis.py consensus rater1.csv rater2.csv -o consensus.csv
-   # спорные случаи (adjudication_needed=1) разрешить третьим рейтером
-   # или консенсус-обсуждением, вписать значения в consensus.csv
+   # resolve disputed cases (adjudication_needed=1) with a third rater
+   # or a consensus discussion, enter the values into consensus.csv
    python3 analysis.py evaluate consensus.csv system_predictions.csv
    python3 analysis.py sensitivity consensus.csv "predictions_thr*.csv"
    ```
-6. Перенести результаты в `sections/04_results.tex` (таблица `tab:detection`,
-   каппа в текст, confusion matrix — рисунок).
+6. Transfer the results into `sections/04_results.tex` (table `tab:detection`,
+   kappa into the text, confusion matrix — a figure).
 
-## Ключевые принципы (не нарушать)
+## Key principles (do not violate)
 
-- **Пороги детекции замораживаются до старта валидации.** Их можно калибровать
-  на отдельном пилоте/референсе (клинические эталонные видео) — но НЕ на тех же
-  участниках, по которым потом считается валидация: подгонка порогов под
-  валидационные данные обесценивает результат (circular validation). Версия
-  порогов фиксируется в выгрузке предсказаний.
-- **Аннотаторы не видят вывод системы** и размечают по клиническим критериям,
-  а не по численным порогам алгоритма (иначе circular validation).
-- **Доверительные интервалы — бутстрепом по участникам**, не по повторениям
-  (повторения одного человека коррелированы).
-- Ключевые точки сохраняются всегда: анализ чувствительности и любые
-  переанализы делаются оффлайн без повторного сбора данных.
+- **Detection thresholds are frozen before the validation starts.** They may be
+  calibrated on a separate pilot/reference set (clinical reference videos) —
+  but NOT on the same participants the validation is later computed on: tuning
+  thresholds to the validation data invalidates the result (circular
+  validation). The threshold version is recorded in the prediction export.
+- **Annotators do not see the system output** and annotate by clinical
+  criteria, not by the algorithm's numeric thresholds (otherwise circular
+  validation).
+- **Confidence intervals — bootstrap over participants**, not over repetitions
+  (repetitions of one person are correlated).
+- Keypoints are always stored: the sensitivity analysis and any re-analyses
+  are done offline without collecting data again.
