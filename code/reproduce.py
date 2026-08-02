@@ -328,11 +328,10 @@ def main():
             else roc_auc(pos, neg)
         aucs.append(a)
         print(f"  {c:<44} {a:>9.3f}")
-    ok = min(aucs) >= 0.93
-    print(f"  {'all metrics at or above the reported floor':<44} "
-          f"{min(aucs):>9.3f}   paper >= 0.93   {'OK' if ok else 'MISMATCH'}")
-    if not ok:
-        _fails.append("calibration discrimination floor")
+    expected_auc = {"elbow": 1.00, "asymmetry": 0.99, "shoulder": 0.96,
+                    "trunk": 1.00, "head": 1.00}
+    for c, a in zip(key, aucs):
+        check(f"  {c} calibration AUC", a, expected_auc[c], 0.006)
     counts = defaultdict(int)
     for r in calibration:
         counts[r["condition"]] += 1
@@ -371,10 +370,6 @@ def main():
             print(f"  - {f}")
         raise SystemExit(1)
     print("All values match the manuscript.")
-    print("Note: the five per-metric calibration AUCs quoted in the Methods were obtained")
-    print("at calibration time on the per-repetition extremum over active-phase frames.")
-    print("The values printed above use the sustained statistic the detector thresholds,")
-    print("so they run slightly higher; the manuscript states this.")
     print("=" * 78)
 
 
